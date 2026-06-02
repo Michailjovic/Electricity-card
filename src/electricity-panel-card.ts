@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import './electricity-panel-editor.js';
+import { PRE_TARIFFS } from './tariff-presets.js';
 import type {
   HomeAssistant,
   ElectricityPanelConfig,
@@ -131,6 +132,68 @@ export class ElectricityPanelCard extends LitElement {
     const h = Math.floor(diff / 3600);
     const m = Math.floor((diff % 3600) / 60);
     return h > 0 ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
+  }
+
+  // ── HDO schedule ───────────────────────────────────────────────────────────
+
+  private _dayType(): 'weekday' | 'weekend' | 'holiday' {
+    const isWorkday = this._isOn(this._config.hdo?.workday_sensor);
+    const d = new Date().getDay(); // 0=Sun, 6=Sat
+    if (isWorkday) return 'weekday';
+    if (d === 0 || d === 6) return 'weekend';
+    return 'holiday';
+  }
+
+  private _renderHdoSchedule(): TemplateResult | typeof nothing {
+    const hdo = this._config.hdo;
+    if (!hdo) return nothing;
+
+    const preset = hdo.tariff_preset ? PRE_TARIFFS[hdo.tariff_preset] : undefined;
+    const src = preset ?? hdo.schedule;
+    if (!src) return nothing;
+
+    const dt = this._dayType();
+    const day = dt === 'holiday' && src.holiday ? src.holiday
+      : dt === 'weekend' ? src.weekend
+      : src.weekday;
+
+    const isNT = this._isOn(hdo.switch);
+    const color = isNT ? 'var(--success-color,#43a047)' : 'var(--error-color,#e53935)';
+    const now = Date.now();
+    const midnight = new Date(); midnight.setHours(0,0,0,0);
+    const fmt = (ms: number) => new Date(ms).toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+
+    const slots = day.starts.map((start, i) => {
+      const [h, m] = start.split(':').map(Number);
+      const s = midnight.getTime() + (h*60+m)*60000;
+      const e = s + day.offsets[i]*60000;
+      const isPast = now >= e;
+      const isCurrent = now >= s && now < e;
+      const pct = isCurrent ? Math.min(100, ((now-s)/(e-s))*100) : isPast ? 100 : 0;
+      const dur = day.offsets[i];
+      const durStr = dur >= 60 ? `${Math.floor(dur/60)}h${dur%60 ? ` ${dur%60}m` : ''}` : `${dur}m`;
+      return { label: `${fmt(s)} – ${fmt(e)}`, isPast, isCurrent, pct, durStr };
+    });
+
+    return html`
+      <div class="schedule-block">
+        <div class="schedule-title">
+          Today's NT schedule
+          <span class="schedule-day">${dt}</span>
+        </div>
+        ${slots.map(sl => html`
+          <div class="srow ${sl.isPast ? 'past' : sl.isCurrent ? 'active' : ''}">
+            <span class="srow-time">${sl.label}</span>
+            <div class="srow-track">
+              <div class="srow-fill" style="width:${sl.pct.toFixed(1)}%;background:${color}"></div>
+            </div>
+            ${sl.isCurrent
+              ? html`<span class="snow" style="background:${color}">Now</span>`
+              : html`<span class="sdur">${sl.durStr}</span>`}
+          </div>
+        `)}
+      </div>
+    `;
   }
 
   // ── Render sections ────────────────────────────────────────────────────────
@@ -313,6 +376,7 @@ export class ElectricityPanelCard extends LitElement {
           : nothing}
         <div class="card-content">
           ${this._renderHdo()}
+          ${this._renderHdoSchedule()}
           ${this._renderMainMeter()}
 
           ${threePhase.length > 0 ? html`
@@ -350,6 +414,83 @@ export class ElectricityPanelCard extends LitElement {
     }
 
     .card-content { padding: 12px 12px 16px; }
+
+    /* HDO schedule */
+    .schedule-block {
+      background: var(--secondary-background-color, rgba(0,0,0,0.04));
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .schedule-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--secondary-text-color);
+      margin-bottom: 10px;
+    }
+    .schedule-day {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--primary-color, #2196f3);
+      color: white;
+      opacity: 0.7;
+      text-transform: capitalize;
+      letter-spacing: 0.3px;
+    }
+    .srow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+      opacity: 0.4;
+    }
+    .srow:last-child { border-bottom: none; }
+    .srow.active { opacity: 1; }
+    .srow:not(.past):not(.active) { opacity: 0.65; }
+    .srow-time {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--primary-text-color);
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      min-width: 110px;
+    }
+    .srow-track {
+      flex: 1;
+      height: 3px;
+      background: var(--divider-color, rgba(0,0,0,0.1));
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .srow-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1s ease;
+    }
+    .snow {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: #000;
+      flex-shrink: 0;
+    }
+    .sdur {
+      font-size: 10px;
+      color: var(--disabled-text-color);
+      flex-shrink: 0;
+      min-width: 30px;
+      text-align: right;
+    }
 
     /* HDO bar */
     .hdo-bar {

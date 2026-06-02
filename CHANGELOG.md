@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.5] - 2026-06-02
+
+### Added
+- NT schedule visualization — shows all of today's low-tariff windows with individual progress bars, a "Now" badge on the active window, and dimmed past slots. Updates automatically every 30 seconds.
+- Built-in PRE tariff presets (600, 601, 605, 606, 607) extracted from official PRE HDO schedule. Select your tariff code in the editor — weekday, weekend and public holiday schedules are loaded automatically.
+- Tariff preset selector dropdown in the GUI editor (HDO section)
+
+---
+
 ## [2.0.4] - 2026-06-02
 
 ### Added

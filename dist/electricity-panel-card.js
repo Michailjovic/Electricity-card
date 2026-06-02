@@ -600,6 +600,83 @@ function n2(t2) {
 function r(r2) {
   return n2({ ...r2, state: true, attribute: false });
 }
+const PRE_TARIFFS = {
+  "600": {
+    label: "PRE 600 — D25d / D26d (appliance)",
+    weekday: {
+      starts: ["00:40", "12:40"],
+      offsets: [300, 180]
+    },
+    weekend: {
+      starts: ["02:40", "12:40"],
+      offsets: [180, 300]
+    },
+    holiday: {
+      starts: ["00:40", "12:20"],
+      offsets: [300, 180]
+    }
+  },
+  "601": {
+    label: "PRE 601 — C45d (hot water / TUV)",
+    weekday: {
+      starts: ["01:00", "04:40", "14:00"],
+      offsets: [180, 120, 180]
+    },
+    weekend: {
+      starts: ["01:20", "11:00", "14:00"],
+      offsets: [160, 140, 180]
+    },
+    holiday: {
+      starts: ["02:00", "06:40", "15:00"],
+      offsets: [240, 80, 160]
+    }
+  },
+  "605": {
+    label: "PRE 605 — D57d (main NT)",
+    weekday: {
+      starts: ["01:40", "05:20", "10:00", "13:40", "18:20"],
+      offsets: [180, 240, 180, 240, 180]
+    },
+    weekend: {
+      starts: ["02:40", "06:20", "10:00", "13:40", "19:20"],
+      offsets: [180, 180, 180, 300, 180]
+    },
+    holiday: {
+      starts: ["02:20", "07:00", "11:40", "15:20", "19:00"],
+      offsets: [240, 240, 180, 180, 180]
+    }
+  },
+  "606": {
+    label: "PRE 606 — D57d (appliance)",
+    weekday: {
+      starts: ["01:40", "05:20", "10:00", "13:40", "18:20"],
+      offsets: [180, 240, 180, 240, 180]
+    },
+    weekend: {
+      starts: ["02:40", "06:20", "10:00", "13:40", "19:20"],
+      offsets: [180, 180, 180, 300, 180]
+    },
+    holiday: {
+      starts: ["02:20", "07:00", "11:40", "15:20", "19:00"],
+      offsets: [240, 240, 180, 180, 180]
+    }
+  },
+  "607": {
+    label: "PRE 607 — D57d (hot water / TUV)",
+    weekday: {
+      starts: ["01:40", "05:20", "13:40"],
+      offsets: [180, 120, 180]
+    },
+    weekend: {
+      starts: ["03:00", "06:20", "13:40"],
+      offsets: [160, 120, 200]
+    },
+    holiday: {
+      starts: ["02:20", "07:00", "15:20"],
+      offsets: [240, 80, 160]
+    }
+  }
+};
 var __defProp$1 = Object.defineProperty;
 var __getOwnPropDesc$1 = Object.getOwnPropertyDescriptor;
 var __decorateClass$1 = (decorators, target, key, kind) => {
@@ -829,6 +906,21 @@ let ElectricityPanelEditor = class extends i {
           ${this._entityField("Next high tariff start", h2.next_high, s2("next_high"))}
           ${this._entityField("Next low tariff start", h2.next_low, s2("next_low"))}
           ${this._entityField("Workday sensor", h2.workday_sensor, s2("workday_sensor"))}
+          <div class="field">
+            <label>PRE tariff preset (NT schedule)</label>
+            <select @change=${(e2) => s2("tariff_preset")(e2.target.value)}>
+              <option value="" ?selected=${!h2.tariff_preset}>— none / manual schedule —</option>
+              ${Object.entries(PRE_TARIFFS).map(([code, preset]) => b`
+                <option value="${code}" ?selected=${h2.tariff_preset === code}>
+                  ${code} — ${preset.label.replace(/^PRE \d+ — /, "")}
+                </option>
+              `)}
+            </select>
+            <span class="field-hint">
+              Enables the NT schedule timeline in the card.
+              Weekday / weekend / holiday schedules are loaded automatically.
+            </span>
+          </div>
         </div>
       </details>`;
   }
@@ -989,6 +1081,13 @@ ElectricityPanelEditor.styles = i$3`
     .field.checkbox label { font-size: 13px; color: var(--primary-text-color); cursor: pointer; margin: 0; }
     .field.checkbox input { width: auto; }
 
+    .field-hint {
+      display: block;
+      font-size: 11px;
+      color: var(--secondary-text-color);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
     .group-label {
       font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
       color: var(--disabled-text-color); margin-bottom: 6px;
@@ -1034,7 +1133,7 @@ ElectricityPanelEditor.styles = i$3`
 
     .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .badge.info { background: rgba(33,150,243,0.12); color: var(--primary-color, #2196f3); }
-    .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
+      .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
 
     .btn-icon { background: none; border: none; cursor: pointer; color: var(--secondary-text-color); padding: 2px; border-radius: 4px; display: flex; align-items: center; }
     .btn-icon:hover { background: var(--secondary-background-color); }
@@ -1179,6 +1278,58 @@ let ElectricityPanelCard = class extends i {
     const h2 = Math.floor(diff / 3600);
     const m2 = Math.floor(diff % 3600 / 60);
     return h2 > 0 ? `${h2} h ${String(m2).padStart(2, "0")} min` : `${m2} min`;
+  }
+  // ── HDO schedule ───────────────────────────────────────────────────────────
+  _dayType() {
+    var _a2;
+    const isWorkday = this._isOn((_a2 = this._config.hdo) == null ? void 0 : _a2.workday_sensor);
+    const d2 = (/* @__PURE__ */ new Date()).getDay();
+    if (isWorkday) return "weekday";
+    if (d2 === 0 || d2 === 6) return "weekend";
+    return "holiday";
+  }
+  _renderHdoSchedule() {
+    const hdo = this._config.hdo;
+    if (!hdo) return A;
+    const preset = hdo.tariff_preset ? PRE_TARIFFS[hdo.tariff_preset] : void 0;
+    const src = preset ?? hdo.schedule;
+    if (!src) return A;
+    const dt = this._dayType();
+    const day = dt === "holiday" && src.holiday ? src.holiday : dt === "weekend" ? src.weekend : src.weekday;
+    const isNT = this._isOn(hdo.switch);
+    const color = isNT ? "var(--success-color,#43a047)" : "var(--error-color,#e53935)";
+    const now = Date.now();
+    const midnight = /* @__PURE__ */ new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const fmt = (ms) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    const slots = day.starts.map((start, i2) => {
+      const [h2, m2] = start.split(":").map(Number);
+      const s2 = midnight.getTime() + (h2 * 60 + m2) * 6e4;
+      const e2 = s2 + day.offsets[i2] * 6e4;
+      const isPast = now >= e2;
+      const isCurrent = now >= s2 && now < e2;
+      const pct = isCurrent ? Math.min(100, (now - s2) / (e2 - s2) * 100) : isPast ? 100 : 0;
+      const dur = day.offsets[i2];
+      const durStr = dur >= 60 ? `${Math.floor(dur / 60)}h${dur % 60 ? ` ${dur % 60}m` : ""}` : `${dur}m`;
+      return { label: `${fmt(s2)} – ${fmt(e2)}`, isPast, isCurrent, pct, durStr };
+    });
+    return b`
+      <div class="schedule-block">
+        <div class="schedule-title">
+          Today's NT schedule
+          <span class="schedule-day">${dt}</span>
+        </div>
+        ${slots.map((sl) => b`
+          <div class="srow ${sl.isPast ? "past" : sl.isCurrent ? "active" : ""}">
+            <span class="srow-time">${sl.label}</span>
+            <div class="srow-track">
+              <div class="srow-fill" style="width:${sl.pct.toFixed(1)}%;background:${color}"></div>
+            </div>
+            ${sl.isCurrent ? b`<span class="snow" style="background:${color}">Now</span>` : b`<span class="sdur">${sl.durStr}</span>`}
+          </div>
+        `)}
+      </div>
+    `;
   }
   // ── Render sections ────────────────────────────────────────────────────────
   _renderHdo() {
@@ -1336,6 +1487,7 @@ let ElectricityPanelCard = class extends i {
         ${this._config.title ? b`<div class="card-header">${this._config.title}</div>` : A}
         <div class="card-content">
           ${this._renderHdo()}
+          ${this._renderHdoSchedule()}
           ${this._renderMainMeter()}
 
           ${threePhase.length > 0 ? b`
@@ -1369,6 +1521,83 @@ ElectricityPanelCard.styles = i$3`
     }
 
     .card-content { padding: 12px 12px 16px; }
+
+    /* HDO schedule */
+    .schedule-block {
+      background: var(--secondary-background-color, rgba(0,0,0,0.04));
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .schedule-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--secondary-text-color);
+      margin-bottom: 10px;
+    }
+    .schedule-day {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--primary-color, #2196f3);
+      color: white;
+      opacity: 0.7;
+      text-transform: capitalize;
+      letter-spacing: 0.3px;
+    }
+    .srow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+      opacity: 0.4;
+    }
+    .srow:last-child { border-bottom: none; }
+    .srow.active { opacity: 1; }
+    .srow:not(.past):not(.active) { opacity: 0.65; }
+    .srow-time {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--primary-text-color);
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      min-width: 110px;
+    }
+    .srow-track {
+      flex: 1;
+      height: 3px;
+      background: var(--divider-color, rgba(0,0,0,0.1));
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .srow-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1s ease;
+    }
+    .snow {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: #000;
+      flex-shrink: 0;
+    }
+    .sdur {
+      font-size: 10px;
+      color: var(--disabled-text-color);
+      flex-shrink: 0;
+      min-width: 30px;
+      text-align: right;
+    }
 
     /* HDO bar */
     .hdo-bar {

@@ -68,6 +68,12 @@ export interface MainMeter {
   voltage?: string;      // V — displayed per phase if present
 }
 
+/** One day's NT windows — list of start times (HH:MM) + durations in minutes */
+export interface TariffDay {
+  starts: string[];
+  offsets: number[];
+}
+
 /** HDO (time-of-use tariff) entities and schedule */
 export interface HdoConfig {
   /** switch.hdo — on = NT (low tariff), off = VT (high tariff) */
@@ -78,10 +84,16 @@ export interface HdoConfig {
   next_low?: string;
   /** Workday sensor for weekday/weekend schedule switching */
   workday_sensor?: string;
-  /** NT schedule — used for the progress bar inside HDO status */
+  /**
+   * PRE tariff preset code — e.g. '605'. When set, the card loads the
+   * built-in schedule for that tariff. Takes precedence over `schedule`.
+   */
+  tariff_preset?: string;
+  /** Manual NT schedule (used when tariff_preset is not set) */
   schedule?: {
-    weekday: { starts: string[]; offsets: number[] };
-    weekend: { starts: string[]; offsets: number[] };
+    weekday: TariffDay;
+    weekend: TariffDay;
+    holiday?: TariffDay;
   };
 }
 

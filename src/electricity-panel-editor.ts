@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { PRE_TARIFFS } from './tariff-presets.js';
 import type {
   HomeAssistant,
   ElectricityPanelConfig,
@@ -257,6 +258,21 @@ export class ElectricityPanelEditor extends LitElement {
           ${this._entityField('Next high tariff start', h.next_high, s('next_high'))}
           ${this._entityField('Next low tariff start', h.next_low, s('next_low'))}
           ${this._entityField('Workday sensor', h.workday_sensor, s('workday_sensor'))}
+          <div class="field">
+            <label>PRE tariff preset (NT schedule)</label>
+            <select @change=${(e: Event) => s('tariff_preset')((e.target as HTMLSelectElement).value)}>
+              <option value="" ?selected=${!h.tariff_preset}>— none / manual schedule —</option>
+              ${Object.entries(PRE_TARIFFS).map(([code, preset]) => html`
+                <option value="${code}" ?selected=${h.tariff_preset === code}>
+                  ${code} — ${preset.label.replace(/^PRE \d+ — /, '')}
+                </option>
+              `)}
+            </select>
+            <span class="field-hint">
+              Enables the NT schedule timeline in the card.
+              Weekday / weekend / holiday schedules are loaded automatically.
+            </span>
+          </div>
         </div>
       </details>`;
   }
@@ -412,6 +428,13 @@ export class ElectricityPanelEditor extends LitElement {
     .field.checkbox label { font-size: 13px; color: var(--primary-text-color); cursor: pointer; margin: 0; }
     .field.checkbox input { width: auto; }
 
+    .field-hint {
+      display: block;
+      font-size: 11px;
+      color: var(--secondary-text-color);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
     .group-label {
       font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
       color: var(--disabled-text-color); margin-bottom: 6px;
@@ -457,7 +480,7 @@ export class ElectricityPanelEditor extends LitElement {
 
     .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .badge.info { background: rgba(33,150,243,0.12); color: var(--primary-color, #2196f3); }
-    .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
+      .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
 
     .btn-icon { background: none; border: none; cursor: pointer; color: var(--secondary-text-color); padding: 2px; border-radius: 4px; display: flex; align-items: center; }
     .btn-icon:hover { background: var(--secondary-background-color); }

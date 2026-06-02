@@ -373,15 +373,17 @@ export class ElectricityPanelEditor extends LitElement {
     const total = this._config.circuits?.length ?? 0;
     const sf = (f: keyof Circuit) => (v: string) => this._setCircuitField(idx, f, v);
     return html`
-      <div class="sub-item ${open ? 'open' : ''}">
+      <div class="sub-item ${open ? 'open' : ''}"
+        @dragover=${(e: DragEvent) => { e.preventDefault(); if (this._dragSrcIdx !== idx) this._dragOverIdx = idx; this.requestUpdate(); }}
+        @dragleave=${() => { if (this._dragOverIdx === idx) { this._dragOverIdx = -1; this.requestUpdate(); } }}
+        @drop=${(e: DragEvent) => { e.preventDefault(); if (this._dragSrcIdx >= 0 && this._dragSrcIdx !== idx) this._moveCircuitTo(this._dragSrcIdx, idx); }}>
         <div class="row-hdr ${this._dragOverIdx === idx ? 'drag-over' : ''}"
           @click=${() => { this._openCircuit = open ? -1 : idx; this._openDevice = -1; }}>
-          <ha-icon icon="mdi:drag-vertical" class="drag-handle"
+          <span class="drag-handle"
             draggable="true"
-            @dragstart=${(e: DragEvent) => { e.stopPropagation(); this._dragSrcIdx = idx; e.dataTransfer!.effectAllowed = 'move'; }}
-            @dragend=${(e: DragEvent) => { e.stopPropagation(); this._dragOverIdx = -1; }}
-            @click=${(e: Event) => e.stopPropagation()}>
-          </ha-icon>
+            @dragstart=${(e: DragEvent) => { this._dragSrcIdx = idx; e.dataTransfer!.effectAllowed = 'move'; e.stopPropagation(); }}
+            @dragend=${() => { this._dragOverIdx = -1; this.requestUpdate(); }}
+            @click=${(e: Event) => e.stopPropagation()}>⠿</span>
           <span class="row-lbl">${c.name || '(unnamed circuit)'}</span>
           <div class="badges">
             ${c.phases === 3 ? html`<span class="badge info">3ph</span>` : nothing}
@@ -542,11 +544,13 @@ export class ElectricityPanelEditor extends LitElement {
       flex-shrink: 0;
     }
     .drag-handle {
-      --mdc-icon-size: 18px;
       color: var(--disabled-text-color);
       cursor: grab;
       flex-shrink: 0;
-      touch-action: none;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 2px;
+      user-select: none;
     }
     .drag-handle:active { cursor: grabbing; }
     .row-hdr.drag-over {
@@ -557,7 +561,6 @@ export class ElectricityPanelEditor extends LitElement {
     .btn-icon:hover { background: var(--secondary-background-color); }
     .btn-icon.danger:hover { color: var(--error-color, #e53935); }
     .btn-icon ha-icon { --mdc-icon-size: 18px; }
-
     .btn-add {
       display: flex; align-items: center; gap: 6px;
       background: none; border: 1px dashed var(--divider-color, rgba(0,0,0,0.2));

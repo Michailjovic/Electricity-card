@@ -26,6 +26,7 @@ export class ElectricityPanelCard extends LitElement {
   @state() private _config!: ElectricityPanelConfig;
   @state() private _expanded = new Set<string>();
   @state() private _showTomorrow = false;
+  @state() private _scheduleExpanded = false;
 
   private _timer?: number;
 
@@ -269,35 +270,43 @@ export class ElectricityPanelCard extends LitElement {
     const remaining = showing ? null : this._ntRemainingMins(day.starts, day.offsets);
     const totalNT = day.offsets.reduce((a, b) => a + b, 0);
 
+    const exp = this._scheduleExpanded;
     return html`
       <div class="schedule-block">
-        <div class="schedule-title">
+        <div class="schedule-title" @click=${() => { this._scheduleExpanded = !exp; }}>
           <span class="schedule-when">${showing ? 'Tomorrow' : 'Today'}</span>
           <span class="schedule-day">${dt}</span>
+          ${!exp && remaining !== null
+            ? html`<span class="nt-remaining-inline">${this._fmtMins(remaining)} NT left</span>`
+            : nothing}
           <div class="schedule-nav">
-            ${remaining !== null
+            ${exp && remaining !== null
               ? html`<span class="nt-remaining">${this._fmtMins(remaining)} NT left · ${this._fmtMins(totalNT)} total</span>`
               : nothing}
-            <button class="sday-btn" @click=${() => { this._showTomorrow = !this._showTomorrow; }}>
-              ${showing ? 'Today' : 'Tomorrow'}
-            </button>
+            ${exp ? html`
+              <button class="sday-btn" @click=${(e: Event) => { e.stopPropagation(); this._showTomorrow = !this._showTomorrow; }}>
+                ${showing ? 'Today' : 'Tomorrow'}
+              </button>` : nothing}
+            <ha-icon icon="${exp ? 'mdi:chevron-up' : 'mdi:chevron-down'}" class="schedule-chevron"></ha-icon>
           </div>
         </div>
-        ${this._renderTimeline(slots)}
-        <div class="schedule-rows">
-          ${slots.map(sl => html`
-            <div class="srow ${sl.isPast ? 'past' : sl.isCurrent ? 'active' : 'future'} ${sl.type}">
-              <span class="stariff ${sl.type}">${sl.type.toUpperCase()}</span>
-              <span class="srow-time">${sl.label}</span>
-              <div class="srow-track">
-                <div class="srow-fill ${sl.type}" style="width:${sl.pct.toFixed(1)}%"></div>
+        ${exp ? html`
+          ${this._renderTimeline(slots)}
+          <div class="schedule-rows">
+            ${slots.map(sl => html`
+              <div class="srow ${sl.isPast ? 'past' : sl.isCurrent ? 'active' : 'future'} ${sl.type}">
+                <span class="stariff ${sl.type}">${sl.type.toUpperCase()}</span>
+                <span class="srow-time">${sl.label}</span>
+                <div class="srow-track">
+                  <div class="srow-fill ${sl.type}" style="width:${sl.pct.toFixed(1)}%"></div>
+                </div>
+                ${sl.isCurrent
+                  ? html`<span class="snow ${sl.type}">Now</span>`
+                  : html`<span class="sdur">${sl.durStr}</span>`}
               </div>
-              ${sl.isCurrent
-                ? html`<span class="snow ${sl.type}">Now</span>`
-                : html`<span class="sdur">${sl.durStr}</span>`}
-            </div>
-          `)}
-        </div>
+            `)}
+          </div>
+        ` : nothing}
       </div>
     `;
   }
@@ -422,7 +431,7 @@ export class ElectricityPanelCard extends LitElement {
         </div>
 
         ${expanded && hasDevices
-          ? html`<div class="devices-section">${c.devices!.map(d => this._renderDevice(d))}</div>`
+          ? html`<div class="tp-devices-grid">${c.devices!.map(d => html`<div class="tp-device-col">${this._renderDevice(d)}</div>`)}</div>`
           : nothing}
       </div>
     `;
@@ -575,7 +584,7 @@ export class ElectricityPanelCard extends LitElement {
         ` : nothing}
 
         ${expanded && hasDevices
-          ? html`<div class="devices-section">${c.devices!.map(d => this._renderDevice(d))}</div>`
+          ? html`<div class="tp-devices-grid">${c.devices!.map(d => html`<div class="tp-device-col">${this._renderDevice(d)}</div>`)}</div>`
           : nothing}
       </div>
     `;
@@ -1077,11 +1086,33 @@ export class ElectricityPanelCard extends LitElement {
       margin-top: 8px;
     }
     .tp-no-phases {
-      font-size: 11px;
-      color: var(--disabled-text-color);
-      font-style: italic;
-      margin-top: 6px;
+      font-size: 11px; color: var(--disabled-text-color); font-style: italic; margin-top: 6px;
     }
+
+    /* collapsible schedule */
+    .schedule-title { cursor: pointer; user-select: none; }
+    .schedule-title:hover { opacity: 0.85; }
+    .schedule-chevron { --mdc-icon-size: 16px; color: var(--secondary-text-color); flex-shrink: 0; }
+    .nt-remaining-inline {
+      font-size: 10px; color: var(--secondary-text-color); margin-left: 4px; white-space: nowrap;
+    }
+
+    /* 3-phase device columns */
+    .tp-devices-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--divider-color, rgba(0,0,0,0.08));
+    }
+    .tp-device-col { min-width: 0; }
+    .tp-device-col .device-group-label { padding-left: 0; }
+    .tp-device-col .device-row { padding-left: 0; }
+
+    .note-row { opacity: 0.7; }
+    .note-icon { --mdc-icon-size: 13px; color: var(--disabled-text-color); flex-shrink: 0; }
+    .note-row .device-name { font-style: italic; }
   `;
 }
 

@@ -1000,25 +1000,39 @@ let ElectricityPanelEditor = class extends i {
     ((_a2 = this._config.circuits) == null ? void 0 : _a2.length) ?? 0;
     const sf = (f2) => (v2) => this._setCircuitField(idx, f2, v2);
     return b`
-      <div class="sub-item ${open ? "open" : ""}">
+      <div class="sub-item ${open ? "open" : ""}"
+        @dragover=${(e2) => {
+      e2.preventDefault();
+      if (this._dragSrcIdx !== idx) this._dragOverIdx = idx;
+      this.requestUpdate();
+    }}
+        @dragleave=${() => {
+      if (this._dragOverIdx === idx) {
+        this._dragOverIdx = -1;
+        this.requestUpdate();
+      }
+    }}
+        @drop=${(e2) => {
+      e2.preventDefault();
+      if (this._dragSrcIdx >= 0 && this._dragSrcIdx !== idx) this._moveCircuitTo(this._dragSrcIdx, idx);
+    }}>
         <div class="row-hdr ${this._dragOverIdx === idx ? "drag-over" : ""}"
           @click=${() => {
       this._openCircuit = open ? -1 : idx;
       this._openDevice = -1;
     }}>
-          <ha-icon icon="mdi:drag-vertical" class="drag-handle"
+          <span class="drag-handle"
             draggable="true"
             @dragstart=${(e2) => {
-      e2.stopPropagation();
       this._dragSrcIdx = idx;
       e2.dataTransfer.effectAllowed = "move";
-    }}
-            @dragend=${(e2) => {
       e2.stopPropagation();
-      this._dragOverIdx = -1;
     }}
-            @click=${(e2) => e2.stopPropagation()}>
-          </ha-icon>
+            @dragend=${() => {
+      this._dragOverIdx = -1;
+      this.requestUpdate();
+    }}
+            @click=${(e2) => e2.stopPropagation()}>⠿</span>
           <span class="row-lbl">${c2.name || "(unnamed circuit)"}</span>
           <div class="badges">
             ${c2.phases === 3 ? b`<span class="badge info">3ph</span>` : A}
@@ -1181,11 +1195,13 @@ ElectricityPanelEditor.styles = i$3`
       flex-shrink: 0;
     }
     .drag-handle {
-      --mdc-icon-size: 18px;
       color: var(--disabled-text-color);
       cursor: grab;
       flex-shrink: 0;
-      touch-action: none;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 2px;
+      user-select: none;
     }
     .drag-handle:active { cursor: grabbing; }
     .row-hdr.drag-over {
@@ -1196,7 +1212,6 @@ ElectricityPanelEditor.styles = i$3`
     .btn-icon:hover { background: var(--secondary-background-color); }
     .btn-icon.danger:hover { color: var(--error-color, #e53935); }
     .btn-icon ha-icon { --mdc-icon-size: 18px; }
-
     .btn-add {
       display: flex; align-items: center; gap: 6px;
       background: none; border: 1px dashed var(--divider-color, rgba(0,0,0,0.2));
@@ -1240,6 +1255,7 @@ let ElectricityPanelCard = class extends i {
     super(...arguments);
     this._expanded = /* @__PURE__ */ new Set();
     this._showTomorrow = false;
+    this._scheduleExpanded = false;
   }
   connectedCallback() {
     super.connectedCallback();
@@ -1438,33 +1454,42 @@ let ElectricityPanelCard = class extends i {
     const slots = this._buildFullDaySlots(day.starts, day.offsets, base, showing);
     const remaining = showing ? null : this._ntRemainingMins(day.starts, day.offsets);
     const totalNT = day.offsets.reduce((a2, b2) => a2 + b2, 0);
+    const exp = this._scheduleExpanded;
     return b`
       <div class="schedule-block">
-        <div class="schedule-title">
+        <div class="schedule-title" @click=${() => {
+      this._scheduleExpanded = !exp;
+    }}>
           <span class="schedule-when">${showing ? "Tomorrow" : "Today"}</span>
           <span class="schedule-day">${dt}</span>
+          ${!exp && remaining !== null ? b`<span class="nt-remaining-inline">${this._fmtMins(remaining)} NT left</span>` : A}
           <div class="schedule-nav">
-            ${remaining !== null ? b`<span class="nt-remaining">${this._fmtMins(remaining)} NT left · ${this._fmtMins(totalNT)} total</span>` : A}
-            <button class="sday-btn" @click=${() => {
+            ${exp && remaining !== null ? b`<span class="nt-remaining">${this._fmtMins(remaining)} NT left · ${this._fmtMins(totalNT)} total</span>` : A}
+            ${exp ? b`
+              <button class="sday-btn" @click=${(e2) => {
+      e2.stopPropagation();
       this._showTomorrow = !this._showTomorrow;
     }}>
-              ${showing ? "Today" : "Tomorrow"}
-            </button>
+                ${showing ? "Today" : "Tomorrow"}
+              </button>` : A}
+            <ha-icon icon="${exp ? "mdi:chevron-up" : "mdi:chevron-down"}" class="schedule-chevron"></ha-icon>
           </div>
         </div>
-        ${this._renderTimeline(slots)}
-        <div class="schedule-rows">
-          ${slots.map((sl) => b`
-            <div class="srow ${sl.isPast ? "past" : sl.isCurrent ? "active" : "future"} ${sl.type}">
-              <span class="stariff ${sl.type}">${sl.type.toUpperCase()}</span>
-              <span class="srow-time">${sl.label}</span>
-              <div class="srow-track">
-                <div class="srow-fill ${sl.type}" style="width:${sl.pct.toFixed(1)}%"></div>
+        ${exp ? b`
+          ${this._renderTimeline(slots)}
+          <div class="schedule-rows">
+            ${slots.map((sl) => b`
+              <div class="srow ${sl.isPast ? "past" : sl.isCurrent ? "active" : "future"} ${sl.type}">
+                <span class="stariff ${sl.type}">${sl.type.toUpperCase()}</span>
+                <span class="srow-time">${sl.label}</span>
+                <div class="srow-track">
+                  <div class="srow-fill ${sl.type}" style="width:${sl.pct.toFixed(1)}%"></div>
+                </div>
+                ${sl.isCurrent ? b`<span class="snow ${sl.type}">Now</span>` : b`<span class="sdur">${sl.durStr}</span>`}
               </div>
-              ${sl.isCurrent ? b`<span class="snow ${sl.type}">Now</span>` : b`<span class="sdur">${sl.durStr}</span>`}
-            </div>
-          `)}
-        </div>
+            `)}
+          </div>
+        ` : A}
       </div>
     `;
   }
@@ -1572,7 +1597,7 @@ let ElectricityPanelCard = class extends i {
               </button>` : A}
         </div>
 
-        ${expanded && hasDevices ? b`<div class="devices-section">${c2.devices.map((d2) => this._renderDevice(d2))}</div>` : A}
+        ${expanded && hasDevices ? b`<div class="tp-devices-grid">${c2.devices.map((d2) => b`<div class="tp-device-col">${this._renderDevice(d2)}</div>`)}</div>` : A}
       </div>
     `;
   }
@@ -1698,7 +1723,7 @@ let ElectricityPanelCard = class extends i {
           </div>
         ` : A}
 
-        ${expanded && hasDevices ? b`<div class="devices-section">${c2.devices.map((d2) => this._renderDevice(d2))}</div>` : A}
+        ${expanded && hasDevices ? b`<div class="tp-devices-grid">${c2.devices.map((d2) => b`<div class="tp-device-col">${this._renderDevice(d2)}</div>`)}</div>` : A}
       </div>
     `;
   }
@@ -2189,11 +2214,33 @@ ElectricityPanelCard.styles = i$3`
       margin-top: 8px;
     }
     .tp-no-phases {
-      font-size: 11px;
-      color: var(--disabled-text-color);
-      font-style: italic;
-      margin-top: 6px;
+      font-size: 11px; color: var(--disabled-text-color); font-style: italic; margin-top: 6px;
     }
+
+    /* collapsible schedule */
+    .schedule-title { cursor: pointer; user-select: none; }
+    .schedule-title:hover { opacity: 0.85; }
+    .schedule-chevron { --mdc-icon-size: 16px; color: var(--secondary-text-color); flex-shrink: 0; }
+    .nt-remaining-inline {
+      font-size: 10px; color: var(--secondary-text-color); margin-left: 4px; white-space: nowrap;
+    }
+
+    /* 3-phase device columns */
+    .tp-devices-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--divider-color, rgba(0,0,0,0.08));
+    }
+    .tp-device-col { min-width: 0; }
+    .tp-device-col .device-group-label { padding-left: 0; }
+    .tp-device-col .device-row { padding-left: 0; }
+
+    .note-row { opacity: 0.7; }
+    .note-icon { --mdc-icon-size: 13px; color: var(--disabled-text-color); flex-shrink: 0; }
+    .note-row .device-name { font-style: italic; }
   `;
 __decorateClass([
   n2({ attribute: false })
@@ -2207,6 +2254,9 @@ __decorateClass([
 __decorateClass([
   r()
 ], ElectricityPanelCard.prototype, "_showTomorrow", 2);
+__decorateClass([
+  r()
+], ElectricityPanelCard.prototype, "_scheduleExpanded", 2);
 ElectricityPanelCard = __decorateClass([
   t("electricity-panel-card")
 ], ElectricityPanelCard);

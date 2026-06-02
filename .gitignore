@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Vite build cache
+*.mjs
+.vite/
+
 # Build output — dist/ IS committed (required for HACS)
 # dist/
 

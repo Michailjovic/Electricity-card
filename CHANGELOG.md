@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] - 2026-06-02
+
+### Fixed
+- Editor not rendering in the HA card configuration dialog — the editor module was not imported in the main card file, causing it to be excluded from the bundle
+- Build failing on Windows-mounted filesystem — added `emptyOutDir: false` to Vite config to prevent the `EPERM unlink` error
+- Vite cache files (`.mjs`) added to `.gitignore` to prevent them from appearing as uncommitted changes
+
+---
+
 ## [2.0.0] - unreleased
 
 ### Changed

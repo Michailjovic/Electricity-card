@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import './electricity-panel-editor.js';
 import type {
   HomeAssistant,
   ElectricityPanelConfig,
@@ -564,6 +565,6 @@ export class ElectricityPanelCard extends LitElement {
 ((window as unknown as Record<string, unknown[]>)['customCards']).push({
   type: 'electricity-panel-card',
   name: 'Electricity Panel Card',
-  description: 'Circuit breaker panel with power monitoring and HDO tariff integration',
+  description: 'Circuit breaker panel — power, current, daily energy, HDO tariff',
   preview: false,
 });

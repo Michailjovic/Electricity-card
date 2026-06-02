@@ -1,0 +1,21 @@
+{
+  "name": "electricity-panel-card",
+  "version": "2.0.0",
+  "description": "Home Assistant custom Lovelace card for electricity panel management — circuit breakers, power monitoring, HDO tariff integration",
+  "keywords": ["home-assistant", "lovelace", "custom-card", "electricity", "hdo"],
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/electricity-panel-card.js",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "lit": "^3.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

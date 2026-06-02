@@ -1427,14 +1427,19 @@ let ElectricityPanelCard = class extends i {
     return slots;
   }
   // ── Render: 24h timeline bar ───────────────────────────────────────────────
-  _renderTimeline(slots) {
-    slots.reduce((s2, sl) => s2 + sl.durMins, 0) || 1440;
+  _renderTimeline(slots, showMarker = false) {
+    const midnight = /* @__PURE__ */ new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const nowPct = showMarker ? Math.min(100, (Date.now() - midnight.getTime()) / 864e5 * 100) : -1;
     return b`
-      <div class="timeline-bar">
+      <div class="timeline-bar" style="position:relative">
         ${slots.map((sl) => b`
           <div class="tl-seg ${sl.type} ${sl.isPast ? "past" : sl.isCurrent ? "active" : ""}"
                style="flex:${sl.durMins}"></div>
         `)}
+        ${nowPct >= 0 ? b`
+          <div class="timeline-now" style="left:${nowPct.toFixed(2)}%"></div>
+        ` : A}
       </div>
     `;
   }
@@ -1463,9 +1468,12 @@ let ElectricityPanelCard = class extends i {
     }}>
           <span class="schedule-when">${showing ? "Tomorrow" : "Today"}</span>
           <span class="schedule-day">${dt}</span>
-          ${!exp && remaining !== null ? b`<span class="nt-remaining-inline">${this._fmtMins(remaining)} NT left</span>` : A}
+          ${!exp && currentSlot ? b`
+            <span class="stariff ${currentSlot.type}" style="margin-left:4px">${currentSlot.type.toUpperCase()}</span>
+            <span class="nt-remaining-inline">${currentSlot.label}</span>
+          ` : A}
           <div class="schedule-nav">
-            ${exp && remaining !== null ? b`<span class="nt-remaining">${this._fmtMins(remaining)} NT left · ${this._fmtMins(totalNT)} total</span>` : A}
+            ${remaining !== null ? b`<span class="nt-remaining">${this._fmtMins(remaining)} NT left${exp ? ` · ${this._fmtMins(totalNT)} total` : ""}</span>` : A}
             ${exp ? b`
               <button class="sday-btn" @click=${(e2) => {
       e2.stopPropagation();
@@ -1476,15 +1484,7 @@ let ElectricityPanelCard = class extends i {
             <ha-icon icon="${exp ? "mdi:chevron-up" : "mdi:chevron-down"}" class="schedule-chevron"></ha-icon>
           </div>
         </div>
-        ${!exp && currentSlot ? b`
-          <div class="schedule-current-row srow active ${currentSlot.type}">
-            <span class="stariff ${currentSlot.type}">${currentSlot.type.toUpperCase()}</span>
-            <span class="srow-time">${currentSlot.label}</span>
-            <div class="srow-track"><div class="srow-fill ${currentSlot.type}" style="width:${currentSlot.pct.toFixed(1)}%"></div></div>
-            <span class="snow ${currentSlot.type}">Now</span>
-          </div>
-        ` : A}
-        ${this._renderTimeline(slots)}
+        ${this._renderTimeline(slots, !showing)}
         ${exp ? b`
           <div class="schedule-rows">
             ${slots.map((sl) => b`
@@ -2279,8 +2279,16 @@ ElectricityPanelCard.styles = i$3`
     }
 
     /* schedule current row shown when collapsed */
-    .schedule-current-row {
-      margin-top: 6px;
+    /* timeline position marker */
+    .timeline-now {
+      position: absolute;
+      top: -1px;
+      bottom: -1px;
+      width: 2px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 1px;
+      pointer-events: none;
+      box-shadow: 0 0 4px rgba(255,255,255,0.4);
     }
   `;
 __decorateClass([

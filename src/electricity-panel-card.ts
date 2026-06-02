@@ -237,14 +237,20 @@ export class ElectricityPanelCard extends LitElement {
 
   // ── Render: 24h timeline bar ───────────────────────────────────────────────
 
-  private _renderTimeline(slots: DaySlot[]): TemplateResult {
-    const total = slots.reduce((s, sl) => s + sl.durMins, 0) || 1440;
+  private _renderTimeline(slots: DaySlot[], showMarker = false): TemplateResult {
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    const nowPct = showMarker
+      ? Math.min(100, ((Date.now() - midnight.getTime()) / 86400000) * 100)
+      : -1;
     return html`
-      <div class="timeline-bar">
+      <div class="timeline-bar" style="position:relative">
         ${slots.map(sl => html`
           <div class="tl-seg ${sl.type} ${sl.isPast ? 'past' : sl.isCurrent ? 'active' : ''}"
                style="flex:${sl.durMins}"></div>
         `)}
+        ${nowPct >= 0 ? html`
+          <div class="timeline-now" style="left:${nowPct.toFixed(2)}%"></div>
+        ` : nothing}
       </div>
     `;
   }
@@ -277,12 +283,13 @@ export class ElectricityPanelCard extends LitElement {
         <div class="schedule-title" @click=${() => { this._scheduleExpanded = !exp; }}>
           <span class="schedule-when">${showing ? 'Tomorrow' : 'Today'}</span>
           <span class="schedule-day">${dt}</span>
-          ${!exp && remaining !== null
-            ? html`<span class="nt-remaining-inline">${this._fmtMins(remaining)} NT left</span>`
-            : nothing}
+          ${!exp && currentSlot ? html`
+            <span class="stariff ${currentSlot.type}" style="margin-left:4px">${currentSlot.type.toUpperCase()}</span>
+            <span class="nt-remaining-inline">${currentSlot.label}</span>
+          ` : nothing}
           <div class="schedule-nav">
-            ${exp && remaining !== null
-              ? html`<span class="nt-remaining">${this._fmtMins(remaining)} NT left · ${this._fmtMins(totalNT)} total</span>`
+            ${remaining !== null
+              ? html`<span class="nt-remaining">${this._fmtMins(remaining)} NT left${exp ? ` · ${this._fmtMins(totalNT)} total` : ''}</span>`
               : nothing}
             ${exp ? html`
               <button class="sday-btn" @click=${(e: Event) => { e.stopPropagation(); this._showTomorrow = !this._showTomorrow; }}>
@@ -291,15 +298,7 @@ export class ElectricityPanelCard extends LitElement {
             <ha-icon icon="${exp ? 'mdi:chevron-up' : 'mdi:chevron-down'}" class="schedule-chevron"></ha-icon>
           </div>
         </div>
-        ${!exp && currentSlot ? html`
-          <div class="schedule-current-row srow active ${currentSlot.type}">
-            <span class="stariff ${currentSlot.type}">${currentSlot.type.toUpperCase()}</span>
-            <span class="srow-time">${currentSlot.label}</span>
-            <div class="srow-track"><div class="srow-fill ${currentSlot.type}" style="width:${currentSlot.pct.toFixed(1)}%"></div></div>
-            <span class="snow ${currentSlot.type}">Now</span>
-          </div>
-        ` : nothing}
-        ${this._renderTimeline(slots)}
+        ${this._renderTimeline(slots, !showing)}
         ${exp ? html`
           <div class="schedule-rows">
             ${slots.map(sl => html`
@@ -1151,8 +1150,16 @@ export class ElectricityPanelCard extends LitElement {
     }
 
     /* schedule current row shown when collapsed */
-    .schedule-current-row {
-      margin-top: 6px;
+    /* timeline position marker */
+    .timeline-now {
+      position: absolute;
+      top: -1px;
+      bottom: -1px;
+      width: 2px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 1px;
+      pointer-events: none;
+      box-shadow: 0 0 4px rgba(255,255,255,0.4);
     }
   `;
 }

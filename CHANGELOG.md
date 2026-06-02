@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.7.0] - 2026-06-03
+
+### Changed
+- Schedule collapsed view redesigned — the big progress-bar row is removed. The collapsed header now shows the current tariff badge and time range inline (e.g. `NT 00:00–01:00`). The 24h timeline bar is always visible below the header.
+- Timeline bar shows a white position marker — a thin white line marks the current time within the full-day bar, so you can see at a glance where you are in the day.
+
+---
+
 ## [2.6.0] - 2026-06-03
 
 ### Added

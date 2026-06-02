@@ -1473,7 +1473,7 @@ let ElectricityPanelCard = class extends i {
             <span class="nt-remaining-inline">${currentSlot.label}</span>
           ` : A}
           <div class="schedule-nav">
-            ${remaining !== null ? b`<span class="nt-remaining">${this._fmtMins(remaining)} NT left${exp ? ` · ${this._fmtMins(totalNT)} total` : ""}</span>` : A}
+            ${exp && remaining !== null ? b`<span class="nt-remaining">${this._fmtMins(remaining)} NT left · ${this._fmtMins(totalNT)} total</span>` : A}
             ${exp ? b`
               <button class="sday-btn" @click=${(e2) => {
       e2.stopPropagation();

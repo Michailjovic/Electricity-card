@@ -288,8 +288,8 @@ export class ElectricityPanelCard extends LitElement {
             <span class="nt-remaining-inline">${currentSlot.label}</span>
           ` : nothing}
           <div class="schedule-nav">
-            ${remaining !== null
-              ? html`<span class="nt-remaining">${this._fmtMins(remaining)} NT left${exp ? ` · ${this._fmtMins(totalNT)} total` : ''}</span>`
+            ${exp && remaining !== null
+              ? html`<span class="nt-remaining">${this._fmtMins(remaining)} NT left · ${this._fmtMins(totalNT)} total</span>`
               : nothing}
             ${exp ? html`
               <button class="sday-btn" @click=${(e: Event) => { e.stopPropagation(); this._showTomorrow = !this._showTomorrow; }}>

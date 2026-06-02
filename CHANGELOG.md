@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.7.1] - 2026-06-03
+
+### Fixed
+- "19h NT left" in collapsed schedule header removed — it showed the sum of ALL remaining NT windows today, which was confusing (looked like a bug). The HDO bar already shows when the current window ends. NT remaining is now shown only in the expanded view.
+
+---
+
 ## [2.7.0] - 2026-06-03
 
 ### Changed

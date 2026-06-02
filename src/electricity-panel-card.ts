@@ -503,9 +503,10 @@ export class ElectricityPanelCard extends LitElement {
   private _renderThreePhaseCircuit(c: Circuit): TemplateResult {
     const isOn = this._isOn(c.switch);
     const hasPhaseData = !!(c.power_l1 || c.power_l2 || c.power_l3);
-    const totalPower = hasPhaseData
-      ? this._watts(c.power_l1) + this._watts(c.power_l2) + this._watts(c.power_l3)
-      : this._watts(c.power);
+    // Total power: use dedicated entity if set, otherwise sum L1+L2+L3
+    const totalPower = c.power
+      ? this._watts(c.power)
+      : this._watts(c.power_l1) + this._watts(c.power_l2) + this._watts(c.power_l3);
     const energy = this._kwh(c.energy);
     const maxA = c.max_current ?? 63;
     const phases = [
@@ -513,9 +514,10 @@ export class ElectricityPanelCard extends LitElement {
       { label: 'L2', power: c.power_l2, current: c.current_l2 },
       { label: 'L3', power: c.power_l3, current: c.current_l3 },
     ];
-    const totalCurrent = hasPhaseData
-      ? Math.max(this._num(c.current_l1), this._num(c.current_l2), this._num(c.current_l3))
-      : this._num(c.current);
+    // Total current for load bar: use dedicated entity if set, otherwise max of phases
+    const totalCurrent = c.current
+      ? this._num(c.current)
+      : Math.max(this._num(c.current_l1), this._num(c.current_l2), this._num(c.current_l3));
     const loadPct = Math.min(100, totalCurrent > 0
       ? (totalCurrent / maxA) * 100
       : (totalPower / (maxA * 400)) * 100);
@@ -553,19 +555,15 @@ export class ElectricityPanelCard extends LitElement {
           <div class="load-fill" style="width:${loadPct.toFixed(1)}%;background:${barColor}"></div>
         </div>
 
-        ${hasPhaseData ? html`
-          <div class="phases-grid">
-            ${phases.map(p => html`
-              <div class="phase-cell">
-                <div class="phase-label">${p.label}</div>
-                <div class="phase-power">${(this._watts(p.power) / 1000).toFixed(2)} kW</div>
-                <div class="phase-detail">${this._num(p.current).toFixed(1)} A</div>
-              </div>
-            `)}
-          </div>
-        ` : html`
-          <div class="tp-no-phases">Configure L1/L2/L3 entities for phase breakdown</div>
-        `}
+        <div class="phases-grid">
+          ${phases.map(p => html`
+            <div class="phase-cell">
+              <div class="phase-label">${p.label}</div>
+              <div class="phase-power">${(this._watts(p.power) / 1000).toFixed(2)} kW</div>
+              <div class="phase-detail">${this._num(p.current).toFixed(1)} A</div>
+            </div>
+          `)}
+        </div>
 
         ${hasDevices ? html`
           <div class="tp-footer">

@@ -601,80 +601,59 @@ function r(r2) {
   return n2({ ...r2, state: true, attribute: false });
 }
 const PRE_TARIFFS = {
+  // 600: D25d/D26d appliance — Excel code 600
   "600": {
-    label: "PRE 600 — D25d / D26d (appliance)",
-    weekday: {
-      starts: ["00:40", "12:40"],
-      offsets: [300, 180]
-    },
-    weekend: {
-      starts: ["02:40", "12:40"],
-      offsets: [180, 300]
-    },
-    holiday: {
-      starts: ["00:40", "12:20"],
-      offsets: [300, 180]
-    }
+    label: "PRE 600 — D25d / D26d",
+    weekday: { starts: ["00:40", "12:40"], offsets: [300, 180] },
+    weekend: { starts: ["02:40", "12:40"], offsets: [180, 300] },
+    holiday: { starts: ["00:40", "12:20"], offsets: [300, 180] }
   },
+  // 601: C45d hot water — Excel code 601
   "601": {
     label: "PRE 601 — C45d (hot water / TUV)",
-    weekday: {
-      starts: ["01:00", "04:40", "14:00"],
-      offsets: [180, 120, 180]
-    },
-    weekend: {
-      starts: ["01:20", "11:00", "14:00"],
-      offsets: [160, 140, 180]
-    },
-    holiday: {
-      starts: ["02:00", "06:40", "15:00"],
-      offsets: [240, 80, 160]
-    }
+    weekday: { starts: ["01:00", "04:40", "14:00"], offsets: [180, 120, 180] },
+    weekend: { starts: ["01:20", "11:00", "14:00"], offsets: [160, 140, 180] },
+    holiday: { starts: ["02:00", "06:40", "15:00"], offsets: [240, 80, 160] }
   },
+  // 605: D57d main NT — Excel code 605
+  // 7 windows/day; starts at 00:00 and ends at 24:00 (midnight-bordering)
   "605": {
     label: "PRE 605 — D57d (main NT)",
     weekday: {
-      starts: ["01:40", "05:20", "10:00", "13:40", "18:20"],
-      offsets: [180, 240, 180, 240, 180]
+      starts: ["00:00", "01:40", "05:20", "10:00", "13:40", "18:20", "22:00"],
+      offsets: [60, 180, 240, 180, 240, 180, 120]
     },
     weekend: {
-      starts: ["02:40", "06:20", "10:00", "13:40", "19:20"],
-      offsets: [180, 180, 180, 300, 180]
+      starts: ["00:00", "02:40", "06:20", "10:00", "13:40", "19:20", "23:00"],
+      offsets: [120, 180, 180, 180, 300, 180, 60]
     },
     holiday: {
-      starts: ["02:20", "07:00", "11:40", "15:20", "19:00"],
-      offsets: [240, 240, 180, 180, 180]
+      starts: ["00:00", "02:20", "07:00", "11:40", "15:20", "19:00", "22:40"],
+      offsets: [100, 240, 240, 180, 180, 180, 80]
     }
   },
+  // 606: D57d appliance — Excel code 606 (identical schedule to 605)
   "606": {
     label: "PRE 606 — D57d (appliance)",
     weekday: {
-      starts: ["01:40", "05:20", "10:00", "13:40", "18:20"],
-      offsets: [180, 240, 180, 240, 180]
+      starts: ["00:00", "01:40", "05:20", "10:00", "13:40", "18:20", "22:00"],
+      offsets: [60, 180, 240, 180, 240, 180, 120]
     },
     weekend: {
-      starts: ["02:40", "06:20", "10:00", "13:40", "19:20"],
-      offsets: [180, 180, 180, 300, 180]
+      starts: ["00:00", "02:40", "06:20", "10:00", "13:40", "19:20", "23:00"],
+      offsets: [120, 180, 180, 180, 300, 180, 60]
     },
     holiday: {
-      starts: ["02:20", "07:00", "11:40", "15:20", "19:00"],
-      offsets: [240, 240, 180, 180, 180]
+      starts: ["00:00", "02:20", "07:00", "11:40", "15:20", "19:00", "22:40"],
+      offsets: [100, 240, 240, 180, 180, 180, 80]
     }
   },
+  // 607: D57d hot water — Excel code 607
   "607": {
     label: "PRE 607 — D57d (hot water / TUV)",
-    weekday: {
-      starts: ["01:40", "05:20", "13:40"],
-      offsets: [180, 120, 180]
-    },
-    weekend: {
-      starts: ["03:00", "06:20", "13:40"],
-      offsets: [160, 120, 200]
-    },
-    holiday: {
-      starts: ["02:20", "07:00", "15:20"],
-      offsets: [240, 80, 160]
-    }
+    weekday: { starts: ["01:40", "05:20", "13:40"], offsets: [180, 120, 180] },
+    weekend: { starts: ["03:00", "06:20", "13:40"], offsets: [160, 120, 200] },
+    holiday: { starts: ["02:20", "07:00", "15:20"], offsets: [240, 80, 160] }
   }
 };
 var __defProp$1 = Object.defineProperty;
@@ -1660,8 +1639,8 @@ let ElectricityPanelCard = class extends i {
   _renderThreePhaseCircuit(c2) {
     var _a2;
     const isOn = this._isOn(c2.switch);
-    const hasPhaseData = !!(c2.power_l1 || c2.power_l2 || c2.power_l3);
-    const totalPower = hasPhaseData ? this._watts(c2.power_l1) + this._watts(c2.power_l2) + this._watts(c2.power_l3) : this._watts(c2.power);
+    !!(c2.power_l1 || c2.power_l2 || c2.power_l3);
+    const totalPower = c2.power ? this._watts(c2.power) : this._watts(c2.power_l1) + this._watts(c2.power_l2) + this._watts(c2.power_l3);
     const energy = this._kwh(c2.energy);
     const maxA = c2.max_current ?? 63;
     const phases = [
@@ -1669,7 +1648,7 @@ let ElectricityPanelCard = class extends i {
       { label: "L2", power: c2.power_l2, current: c2.current_l2 },
       { label: "L3", power: c2.power_l3, current: c2.current_l3 }
     ];
-    const totalCurrent = hasPhaseData ? Math.max(this._num(c2.current_l1), this._num(c2.current_l2), this._num(c2.current_l3)) : this._num(c2.current);
+    const totalCurrent = c2.current ? this._num(c2.current) : Math.max(this._num(c2.current_l1), this._num(c2.current_l2), this._num(c2.current_l3));
     const loadPct = Math.min(100, totalCurrent > 0 ? totalCurrent / maxA * 100 : totalPower / (maxA * 400) * 100);
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c2.id);
@@ -1700,19 +1679,15 @@ let ElectricityPanelCard = class extends i {
           <div class="load-fill" style="width:${loadPct.toFixed(1)}%;background:${barColor}"></div>
         </div>
 
-        ${hasPhaseData ? b`
-          <div class="phases-grid">
-            ${phases.map((p2) => b`
-              <div class="phase-cell">
-                <div class="phase-label">${p2.label}</div>
-                <div class="phase-power">${(this._watts(p2.power) / 1e3).toFixed(2)} kW</div>
-                <div class="phase-detail">${this._num(p2.current).toFixed(1)} A</div>
-              </div>
-            `)}
-          </div>
-        ` : b`
-          <div class="tp-no-phases">Configure L1/L2/L3 entities for phase breakdown</div>
-        `}
+        <div class="phases-grid">
+          ${phases.map((p2) => b`
+            <div class="phase-cell">
+              <div class="phase-label">${p2.label}</div>
+              <div class="phase-power">${(this._watts(p2.power) / 1e3).toFixed(2)} kW</div>
+              <div class="phase-detail">${this._num(p2.current).toFixed(1)} A</div>
+            </div>
+          `)}
+        </div>
 
         ${hasDevices ? b`
           <div class="tp-footer">

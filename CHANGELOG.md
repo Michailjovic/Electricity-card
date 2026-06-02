@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] - 2026-06-02
+
+### Fixed
+- **Midnight VT bug** — PRE 605/606 (D57d) presets were missing two NT windows per day: `00:00–01:00` at the start and `22:00–00:00` at the end. The schedule incorrectly showed VT at midnight. Data now sourced directly from the official PRE HDO Excel (`aktualni-program-hdo-ke-stazeni.xls`, valid 2025-10-16 → 2028-01-26). All 7 windows per day are present, including midnight-bordering slots.
+
+### Changed
+- **3-phase circuit auto-sum** — when no total `power` / `current` entity is configured on a 3-phase circuit, the card automatically sums `power_l1 + power_l2 + power_l3` for the total display and uses `max(current_l1, current_l2, current_l3)` for the load bar. No manual total entity required (Shelly 3-phase, Tuya 3P breakers, etc.).
+- L1/L2/L3 phase cells are always shown on 3-phase circuit cards — even before per-phase entities are configured, they display `0.00 kW / 0.0 A` as placeholders.
+
+---
+
 ## [2.3.0] - 2026-06-02
 
 ### Added

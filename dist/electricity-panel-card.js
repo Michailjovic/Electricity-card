@@ -619,39 +619,45 @@ function slugify(name) {
 let ElectricityPanelEditor = class extends i {
   constructor() {
     super(...arguments);
-    this._datalistFilled = false;
     this._openCircuit = -1;
     this._openDevice = -1;
+    this._datalistFilled = false;
   }
-  // ── HA editor API ──────────────────────────────────────────────────────────
+  // Block re-renders when only hass changes (it updates constantly in HA).
+  // But on the first hass set, schedule datalist population.
+  shouldUpdate(changedProps) {
+    if (changedProps.size === 1 && changedProps.has("hass")) {
+      if (!this._datalistFilled && this.hass) {
+        requestAnimationFrame(() => this._populateDatalist());
+      }
+      return false;
+    }
+    return true;
+  }
+  // Also populate after the first render triggered by _config being set.
+  updated(changedProps) {
+    super.updated(changedProps);
+    if (!this._datalistFilled && this.hass) {
+      this._populateDatalist();
+    }
+  }
+  _populateDatalist() {
+    var _a2;
+    if (this._datalistFilled || !this.hass) return;
+    const dl = (_a2 = this.shadowRoot) == null ? void 0 : _a2.getElementById("ep-entities");
+    if (!dl) return;
+    dl.innerHTML = Object.keys(this.hass.states).sort().map((id) => `<option value="${id}">`).join("");
+    this._datalistFilled = true;
+  }
   setConfig(config) {
     this._config = deepClone(config);
   }
-  get hass() {
-    return this._hass;
-  }
-  set hass(h2) {
-    this._hass = h2;
-    if (!this._datalistFilled) {
-      this.updateComplete.then(() => {
-        var _a2;
-        const dl = (_a2 = this.shadowRoot) == null ? void 0 : _a2.getElementById("ep-entities");
-        if (dl && !this._datalistFilled) {
-          dl.innerHTML = Object.keys(h2.states).sort().map((id) => `<option value="${id}">`).join("");
-          this._datalistFilled = true;
-        }
-      });
-    }
-  }
-  // ── Event helpers ──────────────────────────────────────────────────────────
   _fire(config) {
-    this.dispatchEvent(
-      new CustomEvent("config-changed", {
-        detail: { config },
-        bubbles: true,
-        composed: true
-      })
-    );
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config },
+      bubbles: true,
+      composed: true
+    }));
   }
   _set(path, value) {
     const cfg = deepClone(this._config);
@@ -661,32 +667,20 @@ let ElectricityPanelEditor = class extends i {
       node = node[path[i2]];
     }
     const last = path[path.length - 1];
-    if (value === "" || value === void 0) {
-      delete node[last];
-    } else {
-      node[last] = value;
-    }
+    if (value === "" || value === void 0) delete node[last];
+    else node[last] = value;
     this._config = cfg;
     this._fire(cfg);
   }
   _inputHandler(path) {
-    return (e2) => {
-      const val = e2.target.value;
-      this._set(path, val);
-    };
-  }
-  _checkHandler(path) {
-    return (e2) => {
-      const val = e2.target.checked;
-      this._set(path, val);
-    };
+    return (e2) => this._set(path, e2.target.value);
   }
   // ── Circuit management ─────────────────────────────────────────────────────
   _addCircuit() {
     const cfg = deepClone(this._config);
     cfg.circuits ?? (cfg.circuits = []);
-    const id = `c${String(cfg.circuits.length + 1).padStart(2, "0")}`;
-    cfg.circuits.push({ id, name: "New circuit", phases: 1 });
+    const n3 = cfg.circuits.length + 1;
+    cfg.circuits.push({ id: `c${String(n3).padStart(2, "0")}`, name: "New circuit", phases: 1 });
     this._config = cfg;
     this._fire(cfg);
     this._openCircuit = cfg.circuits.length - 1;
@@ -699,70 +693,60 @@ let ElectricityPanelEditor = class extends i {
     this._config = cfg;
     this._fire(cfg);
     this._openCircuit = -1;
-    this._openDevice = -1;
   }
   _moveCircuit(idx, dir) {
     const cfg = deepClone(this._config);
     const arr = cfg.circuits ?? [];
-    const target = idx + dir;
-    if (target < 0 || target >= arr.length) return;
-    [arr[idx], arr[target]] = [arr[target], arr[idx]];
+    const t2 = idx + dir;
+    if (t2 < 0 || t2 >= arr.length) return;
+    [arr[idx], arr[t2]] = [arr[t2], arr[idx]];
     this._config = cfg;
     this._fire(cfg);
-    this._openCircuit = target;
+    this._openCircuit = t2;
   }
-  _circuitInput(idx, field) {
-    return (e2) => {
-      const val = e2.target.value;
-      const cfg = deepClone(this._config);
-      const c2 = cfg.circuits[idx];
-      if (val === "") {
-        delete c2[field];
-      } else {
-        c2[field] = field === "phases" ? parseInt(val) : field === "max_current" ? parseFloat(val) : val;
-      }
-      if (field === "name" && val) c2.id = slugify(val);
-      this._config = cfg;
-      this._fire(cfg);
-    };
+  _setCircuitField(idx, field, val) {
+    const cfg = deepClone(this._config);
+    const c2 = cfg.circuits[idx];
+    if (val === "") {
+      delete c2[field];
+    } else {
+      c2[field] = field === "phases" ? parseInt(val) : field === "max_current" ? parseFloat(val) : val;
+    }
+    if (field === "name" && val) c2.id = slugify(val);
+    this._config = cfg;
+    this._fire(cfg);
   }
-  _circuitCheck(idx, field) {
-    return (e2) => {
-      const val = e2.target.checked;
-      const cfg = deepClone(this._config);
-      cfg.circuits[idx][field] = val;
-      this._config = cfg;
-      this._fire(cfg);
-    };
+  _setCircuitCheck(idx, field, val) {
+    const cfg = deepClone(this._config);
+    cfg.circuits[idx][field] = val;
+    this._config = cfg;
+    this._fire(cfg);
   }
   // ── Device management ──────────────────────────────────────────────────────
-  _addDevice(circuitIdx) {
+  _addDevice(ci) {
     var _a2;
     const cfg = deepClone(this._config);
-    (_a2 = cfg.circuits[circuitIdx]).devices ?? (_a2.devices = []);
-    cfg.circuits[circuitIdx].devices.push({ name: "New device" });
+    (_a2 = cfg.circuits[ci]).devices ?? (_a2.devices = []);
+    cfg.circuits[ci].devices.push({ name: "New device" });
     this._config = cfg;
     this._fire(cfg);
-    this._openDevice = cfg.circuits[circuitIdx].devices.length - 1;
+    this._openDevice = cfg.circuits[ci].devices.length - 1;
   }
-  _removeDevice(circuitIdx, deviceIdx) {
+  _removeDevice(ci, di) {
     var _a2;
     const cfg = deepClone(this._config);
-    (_a2 = cfg.circuits[circuitIdx].devices) == null ? void 0 : _a2.splice(deviceIdx, 1);
+    (_a2 = cfg.circuits[ci].devices) == null ? void 0 : _a2.splice(di, 1);
     this._config = cfg;
     this._fire(cfg);
     this._openDevice = -1;
   }
-  _deviceInput(ci, di, field) {
-    return (e2) => {
-      const val = e2.target.value;
-      const cfg = deepClone(this._config);
-      const d2 = cfg.circuits[ci].devices[di];
-      if (val === "") delete d2[field];
-      else d2[field] = val;
-      this._config = cfg;
-      this._fire(cfg);
-    };
+  _setDeviceField(ci, di, field, val) {
+    const cfg = deepClone(this._config);
+    const d2 = cfg.circuits[ci].devices[di];
+    if (val === "") delete d2[field];
+    else d2[field] = val;
+    this._config = cfg;
+    this._fire(cfg);
   }
   // ── Channel management ─────────────────────────────────────────────────────
   _addChannel(ci, di) {
@@ -780,407 +764,296 @@ let ElectricityPanelEditor = class extends i {
     this._config = cfg;
     this._fire(cfg);
   }
-  _channelInput(ci, di, chi, field) {
-    return (e2) => {
-      const val = e2.target.value;
-      const cfg = deepClone(this._config);
-      const ch = cfg.circuits[ci].devices[di].channels[chi];
-      if (val === "") delete ch[field];
-      else ch[field] = val;
-      this._config = cfg;
-      this._fire(cfg);
-    };
+  _setChannelField(ci, di, chi, field, val) {
+    const cfg = deepClone(this._config);
+    const ch = cfg.circuits[ci].devices[di].channels[chi];
+    if (val === "") delete ch[field];
+    else ch[field] = val;
+    this._config = cfg;
+    this._fire(cfg);
   }
-  // ── Render: entity input ───────────────────────────────────────────────────
-  _entityInput(label, value, handler) {
+  // ── Render helpers ─────────────────────────────────────────────────────────
+  _entityField(label, value, onChange) {
     return b`
       <div class="field">
         <label>${label}</label>
-        <input
-          list="ep-entities"
-          .value=${value ?? ""}
-          placeholder="sensor.example"
-          @change=${handler}
-        />
-      </div>
-    `;
+        <input list="ep-entities" .value=${value ?? ""} placeholder="entity_id"
+          @change=${(e2) => onChange(e2.target.value)} />
+      </div>`;
   }
-  _textInput(label, value, handler, placeholder = "") {
+  _textField(label, value, onChange, ph = "") {
     return b`
       <div class="field">
         <label>${label}</label>
-        <input
-          type="text"
-          .value=${value ?? ""}
-          placeholder=${placeholder}
-          @input=${handler}
-        />
-      </div>
-    `;
+        <input type="text" .value=${value ?? ""} placeholder=${ph}
+          @input=${(e2) => onChange(e2.target.value)} />
+      </div>`;
   }
-  _numberInput(label, value, handler, placeholder = "") {
+  _numField(label, value, onChange, ph = "") {
     return b`
       <div class="field">
         <label>${label}</label>
-        <input
-          type="number"
-          .value=${value !== void 0 ? String(value) : ""}
-          placeholder=${placeholder}
-          min="0"
-          @change=${handler}
-        />
-      </div>
-    `;
+        <input type="number" min="0" .value=${value !== void 0 ? String(value) : ""} placeholder=${ph}
+          @change=${(e2) => onChange(e2.target.value)} />
+      </div>`;
   }
-  // ── Render: sections ───────────────────────────────────────────────────────
-  _renderMainMeterSection() {
+  // ── Section renderers ──────────────────────────────────────────────────────
+  _renderMeterSection() {
     const m2 = this._config.main_meter ?? {};
+    const s2 = (f2) => (v2) => this._set(["main_meter", f2], v2);
     return b`
       <details class="section">
         <summary>Main meter</summary>
         <div class="section-body">
-          <div class="field-group-label">Power (W)</div>
-          ${this._entityInput("L1 power", m2.power_l1, this._inputHandler(["main_meter", "power_l1"]))}
-          ${this._entityInput("L2 power", m2.power_l2, this._inputHandler(["main_meter", "power_l2"]))}
-          ${this._entityInput("L3 power", m2.power_l3, this._inputHandler(["main_meter", "power_l3"]))}
-          <div class="field-group-label">Current (A)</div>
-          ${this._entityInput("L1 current", m2.current_l1, this._inputHandler(["main_meter", "current_l1"]))}
-          ${this._entityInput("L2 current", m2.current_l2, this._inputHandler(["main_meter", "current_l2"]))}
-          ${this._entityInput("L3 current", m2.current_l3, this._inputHandler(["main_meter", "current_l3"]))}
-          <div class="field-group-label">Energy</div>
-          ${this._entityInput("Energy today (kWh)", m2.energy_today, this._inputHandler(["main_meter", "energy_today"]))}
+          <div class="group-label">Power (W per phase)</div>
+          ${this._entityField("L1 power", m2.power_l1, s2("power_l1"))}
+          ${this._entityField("L2 power", m2.power_l2, s2("power_l2"))}
+          ${this._entityField("L3 power", m2.power_l3, s2("power_l3"))}
+          <div class="group-label">Current (A per phase)</div>
+          ${this._entityField("L1 current", m2.current_l1, s2("current_l1"))}
+          ${this._entityField("L2 current", m2.current_l2, s2("current_l2"))}
+          ${this._entityField("L3 current", m2.current_l3, s2("current_l3"))}
+          <div class="group-label">Energy</div>
+          ${this._entityField("Energy today (kWh)", m2.energy_today, s2("energy_today"))}
         </div>
-      </details>
-    `;
+      </details>`;
   }
   _renderHdoSection() {
     const h2 = this._config.hdo ?? {};
+    const s2 = (f2) => (v2) => this._set(["hdo", f2], v2);
     return b`
       <details class="section">
         <summary>HDO (time-of-use tariff)</summary>
         <div class="section-body">
-          ${this._entityInput("HDO switch (on = NT)", h2.switch, this._inputHandler(["hdo", "switch"]))}
-          ${this._entityInput("Next high tariff start sensor", h2.next_high, this._inputHandler(["hdo", "next_high"]))}
-          ${this._entityInput("Next low tariff start sensor", h2.next_low, this._inputHandler(["hdo", "next_low"]))}
-          ${this._entityInput("Workday sensor", h2.workday_sensor, this._inputHandler(["hdo", "workday_sensor"]))}
+          ${this._entityField("HDO switch (on = NT / low tariff)", h2.switch, s2("switch"))}
+          ${this._entityField("Next high tariff start", h2.next_high, s2("next_high"))}
+          ${this._entityField("Next low tariff start", h2.next_low, s2("next_low"))}
+          ${this._entityField("Workday sensor", h2.workday_sensor, s2("workday_sensor"))}
         </div>
-      </details>
-    `;
+      </details>`;
   }
-  _renderChannelEditor(ci, di, ch, chi) {
+  _renderChannelRow(ci, di, ch, chi) {
+    const s2 = (f2) => (v2) => this._setChannelField(ci, di, chi, f2, v2);
     return b`
-      <div class="channel-editor">
-        <div class="row-header">
-          <span class="row-label">Channel ${chi + 1}: ${ch.name || "(unnamed)"}</span>
-          <button class="btn-icon danger" @click=${() => this._removeChannel(ci, di, chi)} title="Remove channel">
+      <div class="channel-block">
+        <div class="ch-header">
+          <span>Channel ${chi + 1}: ${ch.name || "(unnamed)"}</span>
+          <button class="btn-icon danger" title="Remove"
+            @click=${() => this._removeChannel(ci, di, chi)}>
             <ha-icon icon="mdi:minus-circle-outline"></ha-icon>
           </button>
         </div>
-        ${this._textInput("Channel name", ch.name, this._channelInput(ci, di, chi, "name"), "e.g. Living room zone")}
-        ${this._entityInput("Switch", ch.switch, this._channelInput(ci, di, chi, "switch"))}
-        ${this._entityInput("Power (W)", ch.power, this._channelInput(ci, di, chi, "power"))}
-        ${this._entityInput("Current (A)", ch.current, this._channelInput(ci, di, chi, "current"))}
-      </div>
-    `;
+        ${this._textField("Name", ch.name, s2("name"), "e.g. Living room zone")}
+        ${this._entityField("Switch", ch.switch, s2("switch"))}
+        ${this._entityField("Power (W)", ch.power, s2("power"))}
+        ${this._entityField("Current (A)", ch.current, s2("current"))}
+      </div>`;
   }
-  _renderDeviceEditor(ci, d2, di) {
-    const isOpen = this._openDevice === di;
+  _renderDeviceRow(ci, d2, di) {
+    const open = this._openDevice === di;
+    const s2 = (f2) => (v2) => this._setDeviceField(ci, di, f2, v2);
     return b`
-      <div class="device-item ${isOpen ? "open" : ""}">
-        <div class="row-header" @click=${() => {
-      this._openDevice = isOpen ? -1 : di;
+      <div class="sub-item ${open ? "open" : ""}">
+        <div class="row-hdr" @click=${() => {
+      this._openDevice = open ? -1 : di;
     }}>
-          <span class="row-label">${d2.name || "(unnamed device)"}</span>
-          <div class="row-actions" @click=${(e2) => e2.stopPropagation()}>
-            <button class="btn-icon danger" @click=${() => this._removeDevice(ci, di)} title="Remove device">
+          <span class="row-lbl">${d2.name || "(unnamed device)"}</span>
+          <div class="row-acts" @click=${(e2) => e2.stopPropagation()}>
+            <button class="btn-icon danger" @click=${() => this._removeDevice(ci, di)}>
               <ha-icon icon="mdi:minus-circle-outline"></ha-icon>
             </button>
           </div>
-          <ha-icon icon="${isOpen ? "mdi:chevron-up" : "mdi:chevron-down"}" class="chevron"></ha-icon>
+          <ha-icon icon="${open ? "mdi:chevron-up" : "mdi:chevron-down"}" class="chevron"></ha-icon>
         </div>
-        ${isOpen ? b`
-          <div class="device-fields">
-            ${this._textInput("Device name", d2.name, this._deviceInput(ci, di, "name"), "e.g. Washing machine")}
-            ${this._entityInput("Switch", d2.switch, this._deviceInput(ci, di, "switch"))}
-            ${this._entityInput("Power (W)", d2.power, this._deviceInput(ci, di, "power"))}
-            ${this._entityInput("Current (A)", d2.current, this._deviceInput(ci, di, "current"))}
-
-            <div class="field-group-label" style="margin-top:10px;">
+        ${open ? b`
+          <div class="sub-fields">
+            ${this._textField("Device name", d2.name, s2("name"), "e.g. Washing machine")}
+            ${this._entityField("Switch", d2.switch, s2("switch"))}
+            ${this._entityField("Power (W)", d2.power, s2("power"))}
+            ${this._entityField("Current (A)", d2.current, s2("current"))}
+            <div class="group-label" style="margin-top:10px;">
               Channels (for multi-relay devices like Shelly 4PM)
             </div>
-            ${(d2.channels ?? []).map((ch, chi) => this._renderChannelEditor(ci, di, ch, chi))}
+            ${(d2.channels ?? []).map((ch, chi) => this._renderChannelRow(ci, di, ch, chi))}
             <button class="btn-add" @click=${() => this._addChannel(ci, di)}>
               <ha-icon icon="mdi:plus"></ha-icon> Add channel
             </button>
-          </div>
-        ` : A}
-      </div>
-    `;
+          </div>` : A}
+      </div>`;
   }
-  _renderCircuitEditor(c2, idx) {
+  _renderCircuitRow(c2, idx) {
     var _a2;
-    const isOpen = this._openCircuit === idx;
+    const open = this._openCircuit === idx;
     const total = ((_a2 = this._config.circuits) == null ? void 0 : _a2.length) ?? 0;
+    const sf = (f2) => (v2) => this._setCircuitField(idx, f2, v2);
     return b`
-      <div class="circuit-item ${isOpen ? "open" : ""}">
-        <div class="row-header" @click=${() => {
-      this._openCircuit = isOpen ? -1 : idx;
+      <div class="sub-item ${open ? "open" : ""}">
+        <div class="row-hdr" @click=${() => {
+      this._openCircuit = open ? -1 : idx;
       this._openDevice = -1;
     }}>
-          <span class="row-label">${c2.name || "(unnamed circuit)"}</span>
-          <div class="row-badges">
-            ${c2.phases === 3 ? b`<span class="badge info">3φ</span>` : A}
+          <span class="row-lbl">${c2.name || "(unnamed circuit)"}</span>
+          <div class="badges">
+            ${c2.phases === 3 ? b`<span class="badge info">3ph</span>` : A}
             ${c2.critical ? b`<span class="badge warn">critical</span>` : A}
           </div>
-          <div class="row-actions" @click=${(e2) => e2.stopPropagation()}>
-            ${idx > 0 ? b`<button class="btn-icon" @click=${() => this._moveCircuit(idx, -1)} title="Move up">
-                  <ha-icon icon="mdi:arrow-up"></ha-icon></button>` : A}
-            ${idx < total - 1 ? b`<button class="btn-icon" @click=${() => this._moveCircuit(idx, 1)} title="Move down">
-                  <ha-icon icon="mdi:arrow-down"></ha-icon></button>` : A}
-            <button class="btn-icon danger" @click=${() => this._removeCircuit(idx)} title="Remove circuit">
+          <div class="row-acts" @click=${(e2) => e2.stopPropagation()}>
+            ${idx > 0 ? b`<button class="btn-icon" @click=${() => this._moveCircuit(idx, -1)}>
+              <ha-icon icon="mdi:arrow-up"></ha-icon></button>` : A}
+            ${idx < total - 1 ? b`<button class="btn-icon" @click=${() => this._moveCircuit(idx, 1)}>
+              <ha-icon icon="mdi:arrow-down"></ha-icon></button>` : A}
+            <button class="btn-icon danger" @click=${() => this._removeCircuit(idx)}>
               <ha-icon icon="mdi:minus-circle-outline"></ha-icon>
             </button>
           </div>
-          <ha-icon icon="${isOpen ? "mdi:chevron-up" : "mdi:chevron-down"}" class="chevron"></ha-icon>
+          <ha-icon icon="${open ? "mdi:chevron-up" : "mdi:chevron-down"}" class="chevron"></ha-icon>
         </div>
-
-        ${isOpen ? b`
-          <div class="circuit-fields">
-            ${this._textInput("Circuit name", c2.name, this._circuitInput(idx, "name"), "e.g. Kitchen left")}
-            ${this._textInput("Circuit ID", c2.id, this._circuitInput(idx, "id"), "e.g. c08")}
-
-            <div class="field inline">
+        ${open ? b`
+          <div class="sub-fields">
+            ${this._textField("Circuit name", c2.name, sf("name"), "e.g. Kitchen left")}
+            ${this._textField("Circuit ID", c2.id, sf("id"), "e.g. c08")}
+            <div class="field">
               <label>Phases</label>
-              <select @change=${this._circuitInput(idx, "phases")}>
-                <option value="1" ?selected=${c2.phases !== 3}>1 (single-phase)</option>
-                <option value="3" ?selected=${c2.phases === 3}>3 (three-phase)</option>
+              <select @change=${(e2) => this._setCircuitField(idx, "phases", e2.target.value)}>
+                <option value="1" ?selected=${c2.phases !== 3}>1 — single-phase</option>
+                <option value="3" ?selected=${c2.phases === 3}>3 — three-phase</option>
               </select>
             </div>
-
-            <div class="field inline checkbox">
-              <input type="checkbox" id="crit-${idx}" ?checked=${c2.critical ?? false}
-                @change=${this._circuitCheck(idx, "critical")} />
+            <div class="field checkbox">
+              <input type="checkbox" id="crit-${idx}" .checked=${c2.critical ?? false}
+                @change=${(e2) => this._setCircuitCheck(idx, "critical", e2.target.checked)} />
               <label for="crit-${idx}">Critical circuit (disables remote toggle)</label>
             </div>
-
-            ${this._numberInput("Max current (A)", c2.max_current, this._circuitInput(idx, "max_current"), c2.phases === 3 ? "63" : "16")}
-
-            <div class="field-group-label" style="margin-top:10px;">Breaker entities</div>
-            ${this._entityInput("Switch", c2.switch, this._circuitInput(idx, "switch"))}
-            ${this._entityInput("Power (W)", c2.power, this._circuitInput(idx, "power"))}
-            ${this._entityInput("Current (A)", c2.current, this._circuitInput(idx, "current"))}
-            ${this._entityInput("Energy today (kWh)", c2.energy, this._circuitInput(idx, "energy"))}
-            ${this._entityInput("Voltage (V)", c2.voltage, this._circuitInput(idx, "voltage"))}
-
-            <div class="field-group-label" style="margin-top:10px;">
-              Devices behind this breaker
-            </div>
-            ${(c2.devices ?? []).map((d2, di) => this._renderDeviceEditor(idx, d2, di))}
+            ${this._numField("Max current A (breaker rating)", c2.max_current, sf("max_current"), c2.phases === 3 ? "63" : "16")}
+            <div class="group-label" style="margin-top:10px;">Breaker entities</div>
+            ${this._entityField("Switch", c2.switch, sf("switch"))}
+            ${this._entityField("Power (W)", c2.power, sf("power"))}
+            ${this._entityField("Current (A)", c2.current, sf("current"))}
+            ${this._entityField("Energy today (kWh)", c2.energy, sf("energy"))}
+            ${this._entityField("Voltage (V)", c2.voltage, sf("voltage"))}
+            <div class="group-label" style="margin-top:10px;">Devices behind this breaker</div>
+            ${(c2.devices ?? []).map((d2, di) => this._renderDeviceRow(idx, d2, di))}
             <button class="btn-add" @click=${() => this._addDevice(idx)}>
               <ha-icon icon="mdi:plus"></ha-icon> Add device
             </button>
-          </div>
-        ` : A}
-      </div>
-    `;
+          </div>` : A}
+      </div>`;
   }
   // ── Main render ────────────────────────────────────────────────────────────
   render() {
     if (!this._config) return b``;
     return b`
       <datalist id="ep-entities"></datalist>
-
       <div class="editor">
-        ${this._textInput(
+        ${this._textField(
       "Card title (optional)",
       this._config.title,
-      this._inputHandler(["title"]),
+      (v2) => this._set(["title"], v2),
       "Electricity panel"
     )}
-
-        ${this._renderMainMeterSection()}
+        ${this._renderMeterSection()}
         ${this._renderHdoSection()}
-
-        <div class="section-header">Circuits</div>
-        ${(this._config.circuits ?? []).map((c2, i2) => this._renderCircuitEditor(c2, i2))}
-        <button class="btn-add primary" @click=${this._addCircuit}>
+        <div class="sec-hdr">Circuits</div>
+        ${(this._config.circuits ?? []).map((c2, i2) => this._renderCircuitRow(c2, i2))}
+        <button class="btn-add primary" @click=${() => this._addCircuit()}>
           <ha-icon icon="mdi:plus-circle-outline"></ha-icon> Add circuit
         </button>
-      </div>
-    `;
+      </div>`;
   }
 };
 ElectricityPanelEditor.styles = i$3`
     :host { display: block; }
-
     .editor { padding: 4px 0 8px; }
 
-    /* Generic field */
-    .field {
-      margin-bottom: 8px;
-    }
+    .field { margin-bottom: 8px; }
     .field label {
-      display: block;
-      font-size: 12px;
-      color: var(--secondary-text-color);
-      margin-bottom: 3px;
+      display: block; font-size: 12px;
+      color: var(--secondary-text-color); margin-bottom: 3px;
     }
     .field input[type="text"],
     .field input[type="number"],
     .field input:not([type]) {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 6px 10px;
-      border-radius: 6px;
+      width: 100%; box-sizing: border-box;
+      padding: 6px 10px; border-radius: 6px;
       border: 1px solid var(--divider-color, rgba(0,0,0,0.15));
       background: var(--primary-background-color);
-      color: var(--primary-text-color);
-      font-size: 13px;
+      color: var(--primary-text-color); font-size: 13px;
     }
     .field select {
-      padding: 6px 10px;
-      border-radius: 6px;
+      padding: 6px 10px; border-radius: 6px;
       border: 1px solid var(--divider-color, rgba(0,0,0,0.15));
       background: var(--primary-background-color);
-      color: var(--primary-text-color);
-      font-size: 13px;
-      cursor: pointer;
+      color: var(--primary-text-color); font-size: 13px; cursor: pointer;
     }
-    .field.inline { display: flex; align-items: center; gap: 10px; }
-    .field.inline label { margin: 0; white-space: nowrap; }
-    .field.checkbox { flex-direction: row-reverse; justify-content: flex-end; gap: 8px; }
-    .field.checkbox label { font-size: 13px; color: var(--primary-text-color); cursor: pointer; }
+    .field.checkbox { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; justify-content: flex-end; }
+    .field.checkbox label { font-size: 13px; color: var(--primary-text-color); cursor: pointer; margin: 0; }
     .field.checkbox input { width: auto; }
 
-    .field-group-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--disabled-text-color);
-      margin-bottom: 6px;
+    .group-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--disabled-text-color); margin-bottom: 6px;
+    }
+    .sec-hdr {
+      font-size: 12px; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--secondary-text-color); margin: 12px 0 6px;
     }
 
-    /* Sections (main meter, hdo) */
     details.section {
       border: 1px solid var(--divider-color, rgba(0,0,0,0.1));
-      border-radius: 8px;
-      margin-bottom: 8px;
+      border-radius: 8px; margin-bottom: 8px;
     }
     details.section > summary {
-      padding: 10px 12px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--primary-text-color);
-      cursor: pointer;
-      user-select: none;
-      list-style: none;
+      padding: 10px 12px; font-size: 13px; font-weight: 500;
+      color: var(--primary-text-color); cursor: pointer; user-select: none; list-style: none;
     }
     details.section > summary::-webkit-details-marker { display: none; }
     .section-body { padding: 4px 12px 12px; }
 
-    /* Section header for circuits */
-    .section-header {
-      font-size: 12px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--secondary-text-color);
-      margin: 12px 0 6px;
-    }
-
-    /* Circuit / device items */
-    .circuit-item,
-    .device-item {
+    .sub-item {
       border: 1px solid var(--divider-color, rgba(0,0,0,0.1));
-      border-radius: 8px;
-      margin-bottom: 6px;
-      overflow: hidden;
+      border-radius: 8px; margin-bottom: 6px; overflow: hidden;
     }
-    .circuit-item.open,
-    .device-item.open {
-      border-color: var(--primary-color, #2196f3);
-    }
+    .sub-item.open { border-color: var(--primary-color, #2196f3); }
 
-    .row-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 9px 12px;
-      cursor: pointer;
-      user-select: none;
+    .row-hdr {
+      display: flex; align-items: center; gap: 6px;
+      padding: 9px 12px; cursor: pointer; user-select: none;
     }
-    .row-header:hover { background: var(--secondary-background-color); }
-
-    .row-label {
-      flex: 1;
-      font-size: 13px;
-      color: var(--primary-text-color);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .row-badges { display: flex; gap: 4px; flex-shrink: 0; }
-    .row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+    .row-hdr:hover { background: var(--secondary-background-color); }
+    .row-lbl { flex: 1; font-size: 13px; color: var(--primary-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badges { display: flex; gap: 4px; flex-shrink: 0; }
+    .row-acts { display: flex; gap: 2px; flex-shrink: 0; }
     .chevron { --mdc-icon-size: 18px; color: var(--secondary-text-color); flex-shrink: 0; }
+    .sub-fields { padding: 4px 12px 12px; }
 
-    .circuit-fields,
-    .device-fields { padding: 4px 12px 12px; }
-
-    /* Channel editor */
-    .channel-editor {
+    .channel-block {
       border: 1px solid var(--divider-color, rgba(0,0,0,0.08));
-      border-radius: 6px;
-      padding: 8px 10px;
-      margin-bottom: 6px;
+      border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;
     }
+    .ch-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: var(--secondary-text-color); }
 
-    /* Badges */
-    .badge {
-      font-size: 10px;
-      padding: 1px 5px;
-      border-radius: 3px;
-      font-weight: 600;
-    }
+    .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .badge.info { background: rgba(33,150,243,0.12); color: var(--primary-color, #2196f3); }
     .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
 
-    /* Buttons */
-    .btn-icon {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--secondary-text-color);
-      padding: 2px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-    }
+    .btn-icon { background: none; border: none; cursor: pointer; color: var(--secondary-text-color); padding: 2px; border-radius: 4px; display: flex; align-items: center; }
     .btn-icon:hover { background: var(--secondary-background-color); }
     .btn-icon.danger:hover { color: var(--error-color, #e53935); }
     .btn-icon ha-icon { --mdc-icon-size: 18px; }
 
     .btn-add {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: none;
-      border: 1px dashed var(--divider-color, rgba(0,0,0,0.2));
-      border-radius: 6px;
-      padding: 7px 12px;
-      font-size: 13px;
-      color: var(--secondary-text-color);
-      cursor: pointer;
-      width: 100%;
-      margin-top: 4px;
+      display: flex; align-items: center; gap: 6px;
+      background: none; border: 1px dashed var(--divider-color, rgba(0,0,0,0.2));
+      border-radius: 6px; padding: 7px 12px; font-size: 13px;
+      color: var(--secondary-text-color); cursor: pointer; width: 100%; margin-top: 4px;
     }
     .btn-add:hover { background: var(--secondary-background-color); }
-    .btn-add.primary {
-      border-color: var(--primary-color, #2196f3);
-      color: var(--primary-color, #2196f3);
-      margin-top: 8px;
-    }
+    .btn-add.primary { border-color: var(--primary-color, #2196f3); color: var(--primary-color, #2196f3); margin-top: 8px; }
     .btn-add ha-icon { --mdc-icon-size: 18px; }
   `;
+__decorateClass$1([
+  n2({ attribute: false })
+], ElectricityPanelEditor.prototype, "hass", 2);
 __decorateClass$1([
   r()
 ], ElectricityPanelEditor.prototype, "_config", 2);

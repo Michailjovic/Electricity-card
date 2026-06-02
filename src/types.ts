@@ -50,10 +50,17 @@ export interface Circuit {
   max_current?: number;
   // ── Tuya / smart breaker entities ──
   switch?: string;   // entity_id of the breaker switch
-  power?: string;    // entity_id — W
-  current?: string;  // entity_id — A
+  power?: string;    // entity_id — W (total)
+  current?: string;  // entity_id — A (total)
   energy?: string;   // entity_id — kWh today
   voltage?: string;  // entity_id — V (optional, used for display only)
+  // ── Per-phase entities (3-phase circuits only) ──
+  power_l1?: string;   // entity_id — W phase 1
+  power_l2?: string;
+  power_l3?: string;
+  current_l1?: string; // entity_id — A phase 1
+  current_l2?: string;
+  current_l3?: string;
   /** Devices wired behind this breaker */
   devices?: CircuitDevice[];
 }

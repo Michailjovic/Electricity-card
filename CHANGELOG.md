@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] - 2026-06-02
+
+### Added
+- Per-phase monitoring for 3-phase circuits — configure `power_l1/l2/l3` and `current_l1/l2/l3` entities on any 3-phase circuit to get an L1/L2/L3 breakdown card styled exactly like the main meter. Editor shows per-phase entity pickers when a circuit is set to 3-phase.
+- 24h timeline bar — a compact colour-coded bar at the top of the schedule block shows the full day NT/VT pattern at a glance (green = NT, red = VT). Active slot glows.
+
+### Changed
+- Single-phase circuit grid capped at 2 columns (was `auto-fill` which produced 8+ columns on wide screens). Falls back to 1 column on very narrow containers.
+- 3-phase circuits moved out of the circuit grid into a stacked full-width layout, consistent with the main meter visual style.
+- Circuit name tooltip — truncated names now show full text on hover (`title` attribute).
+
+---
+
 ## [2.2.0] - 2026-06-02
 
 ### Added

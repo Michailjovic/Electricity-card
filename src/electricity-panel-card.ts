@@ -233,6 +233,21 @@ export class ElectricityPanelCard extends LitElement {
     return slots;
   }
 
+
+  // ── Render: 24h timeline bar ───────────────────────────────────────────────
+
+  private _renderTimeline(slots: DaySlot[]): TemplateResult {
+    const total = slots.reduce((s, sl) => s + sl.durMins, 0) || 1440;
+    return html`
+      <div class="timeline-bar">
+        ${slots.map(sl => html`
+          <div class="tl-seg ${sl.type} ${sl.isPast ? 'past' : sl.isCurrent ? 'active' : ''}"
+               style="flex:${sl.durMins}"></div>
+        `)}
+      </div>
+    `;
+  }
+
   // ── Render: HDO schedule ───────────────────────────────────────────────────
 
   private _renderHdoSchedule(): TemplateResult | typeof nothing {
@@ -268,6 +283,7 @@ export class ElectricityPanelCard extends LitElement {
             </button>
           </div>
         </div>
+        ${this._renderTimeline(slots)}
         <div class="schedule-rows">
           ${slots.map(sl => html`
             <div class="srow ${sl.isPast ? 'past' : sl.isCurrent ? 'active' : 'future'} ${sl.type}">
@@ -371,7 +387,7 @@ export class ElectricityPanelCard extends LitElement {
 
         <div class="circuit-header">
           <div class="status-dot ${isOn ? 'on' : c.switch ? 'off' : 'none'}"></div>
-          <span class="circuit-name">${c.name}</span>
+          <span class="circuit-name" title="${c.name}">${c.name}</span>
           ${c.phases === 3 ? html`<span class="badge badge-phase">3φ</span>` : nothing}
           ${c.critical
             ? html`<ha-icon icon="mdi:lock" class="lock-icon"></ha-icon>`
@@ -482,6 +498,91 @@ export class ElectricityPanelCard extends LitElement {
     `;
   }
 
+  // ── Render: 3-phase circuit ───────────────────────────────────────────────
+
+  private _renderThreePhaseCircuit(c: Circuit): TemplateResult {
+    const isOn = this._isOn(c.switch);
+    const hasPhaseData = !!(c.power_l1 || c.power_l2 || c.power_l3);
+    const totalPower = hasPhaseData
+      ? this._watts(c.power_l1) + this._watts(c.power_l2) + this._watts(c.power_l3)
+      : this._watts(c.power);
+    const energy = this._kwh(c.energy);
+    const maxA = c.max_current ?? 63;
+    const phases = [
+      { label: 'L1', power: c.power_l1, current: c.current_l1 },
+      { label: 'L2', power: c.power_l2, current: c.current_l2 },
+      { label: 'L3', power: c.power_l3, current: c.current_l3 },
+    ];
+    const totalCurrent = hasPhaseData
+      ? Math.max(this._num(c.current_l1), this._num(c.current_l2), this._num(c.current_l3))
+      : this._num(c.current);
+    const loadPct = Math.min(100, totalCurrent > 0
+      ? (totalCurrent / maxA) * 100
+      : (totalPower / (maxA * 400)) * 100);
+    const barColor = this._loadColor(loadPct);
+    const expanded = this._expanded.has(c.id);
+    const hasDevices = (c.devices?.length ?? 0) > 0;
+    const costRate = totalPower > 0 ? this._fmtCostRate(totalPower) : '';
+
+    return html`
+      <div class="circuit-card three-phase-card ${c.critical ? 'critical' : ''} ${c.switch && isOn ? 'is-on' : ''}">
+        <div class="tp-header">
+          <div class="tp-title-row">
+            <div class="status-dot ${isOn ? 'on' : c.switch ? 'off' : 'none'}"></div>
+            <span class="circuit-name" title="${c.name}">${c.name}</span>
+            <span class="badge badge-phase">3φ</span>
+            ${c.critical
+              ? html`<ha-icon icon="mdi:lock" class="lock-icon"></ha-icon>`
+              : c.switch
+                ? html`<button class="toggle ${isOn ? 'on' : 'off'}"
+                    @click=${() => this._toggle(c.switch!)}
+                    aria-label="${isOn ? 'Turn off' : 'Turn on'} ${c.name}">
+                  </button>`
+                : nothing}
+          </div>
+          <div class="tp-total">
+            <span class="metric-primary">${(totalPower / 1000).toFixed(2)} kW</span>
+            <span class="metric-small">
+              ${energy > 0 ? html`${energy.toFixed(2)} kWh` : nothing}
+              ${costRate ? html`<span class="metric-sep">·</span><span class="cost-rate">${costRate}</span>` : nothing}
+            </span>
+          </div>
+        </div>
+
+        <div class="load-track">
+          <div class="load-fill" style="width:${loadPct.toFixed(1)}%;background:${barColor}"></div>
+        </div>
+
+        ${hasPhaseData ? html`
+          <div class="phases-grid">
+            ${phases.map(p => html`
+              <div class="phase-cell">
+                <div class="phase-label">${p.label}</div>
+                <div class="phase-power">${(this._watts(p.power) / 1000).toFixed(2)} kW</div>
+                <div class="phase-detail">${this._num(p.current).toFixed(1)} A</div>
+              </div>
+            `)}
+          </div>
+        ` : html`
+          <div class="tp-no-phases">Configure L1/L2/L3 entities for phase breakdown</div>
+        `}
+
+        ${hasDevices ? html`
+          <div class="tp-footer">
+            <button class="expand-btn" @click=${() => this._toggleExpanded(c.id)}>
+              <ha-icon icon="${expanded ? 'mdi:chevron-up' : 'mdi:chevron-down'}"></ha-icon>
+              <span>${expanded ? 'hide' : 'devices'}</span>
+            </button>
+          </div>
+        ` : nothing}
+
+        ${expanded && hasDevices
+          ? html`<div class="devices-section">${c.devices!.map(d => this._renderDevice(d))}</div>`
+          : nothing}
+      </div>
+    `;
+  }
+
   // ── Main render ────────────────────────────────────────────────────────────
 
   render(): TemplateResult | typeof nothing {
@@ -503,8 +604,8 @@ export class ElectricityPanelCard extends LitElement {
 
           ${threePhase.length > 0 ? html`
             <div class="section-label">3-phase circuits</div>
-            <div class="circuit-grid">
-              ${threePhase.map(c => this._renderCircuit(c))}
+            <div class="three-phase-list">
+              ${threePhase.map(c => this._renderThreePhaseCircuit(c))}
             </div>
           ` : nothing}
 
@@ -794,14 +895,22 @@ export class ElectricityPanelCard extends LitElement {
     .phase-power { font-size: 15px; font-weight: 600; color: var(--primary-text-color); }
     .phase-detail { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }
 
-    /* circuit grid */
+    /* single-phase grid — max 2 columns */
     .circuit-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 8px;
     }
-    @container (max-width: 320px) {
+    @container (max-width: 360px) {
       .circuit-grid { grid-template-columns: 1fr; }
+    }
+
+    /* 3-phase list — stacked full-width */
+    .three-phase-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 4px;
     }
 
     /* circuit card */
@@ -916,6 +1025,65 @@ export class ElectricityPanelCard extends LitElement {
     .note-row { opacity: 0.7; }
     .note-icon { --mdc-icon-size: 13px; color: var(--disabled-text-color); flex-shrink: 0; }
     .note-row .device-name { font-style: italic; }
+
+    /* timeline bar */
+    .timeline-bar {
+      display: flex;
+      height: 5px;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      gap: 1px;
+    }
+    .tl-seg { border-radius: 1px; transition: opacity 0.3s; }
+    .tl-seg.nt { background: var(--success-color, #22c55e); }
+    .tl-seg.vt { background: rgba(239,68,68,0.35); }
+    .tl-seg.past { opacity: 0.35; }
+    .tl-seg.active.nt { box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+    .tl-seg.active.vt { background: var(--error-color, #ef4444); }
+
+    /* 3-phase circuit card */
+    .three-phase-card {
+      background: var(--ha-card-background, var(--card-background-color, #fff));
+      border-radius: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--divider-color, rgba(0,0,0,0.07));
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .three-phase-card.critical { border-left: 3px solid var(--warning-color, #f59e0b); }
+    .three-phase-card.is-on    { border-left: 3px solid var(--success-color, #22c55e); }
+    .tp-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .tp-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+    .tp-total {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+    .tp-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    .tp-no-phases {
+      font-size: 11px;
+      color: var(--disabled-text-color);
+      font-style: italic;
+      margin-top: 6px;
+    }
   `;
 }
 

@@ -413,10 +413,19 @@ export class ElectricityPanelEditor extends LitElement {
             ${this._numField('Max current A (breaker rating)', c.max_current, sf('max_current'), c.phases === 3 ? '63' : '16')}
             <div class="group-label" style="margin-top:10px;">Breaker entities</div>
             ${this._entityField('Switch', c.switch, sf('switch'))}
-            ${this._entityField('Power (W)', c.power, sf('power'))}
-            ${this._entityField('Current (A)', c.current, sf('current'))}
+            ${this._entityField('Total power (W)', c.power, sf('power'))}
+            ${this._entityField('Total current (A)', c.current, sf('current'))}
             ${this._entityField('Energy today (kWh)', c.energy, sf('energy'))}
             ${this._entityField('Voltage (V)', c.voltage, sf('voltage'))}
+            ${c.phases === 3 ? html`
+              <div class="group-label" style="margin-top:10px;">Per-phase entities (3φ breakdown)</div>
+              ${this._entityField('L1 power (W)', c.power_l1, sf('power_l1'))}
+              ${this._entityField('L2 power (W)', c.power_l2, sf('power_l2'))}
+              ${this._entityField('L3 power (W)', c.power_l3, sf('power_l3'))}
+              ${this._entityField('L1 current (A)', c.current_l1, sf('current_l1'))}
+              ${this._entityField('L2 current (A)', c.current_l2, sf('current_l2'))}
+              ${this._entityField('L3 current (A)', c.current_l3, sf('current_l3'))}
+            ` : nothing}
             <div class="group-label" style="margin-top:10px;">Devices behind this breaker</div>
             ${(c.devices ?? []).map((d, di) => this._renderDeviceRow(idx, d, di))}
             <button class="btn-add" @click=${() => this._addDevice(idx)}>

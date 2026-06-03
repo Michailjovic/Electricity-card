@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.0] - 2026-06-03
+
+### Changed — Dark visual redesign
+- **Card background** — the entire card now uses a dark theme (`#111318` base) regardless of the HA theme. Designed for users who run HA in dark mode and want a consistent dark aesthetic.
+- **HDO bar** — dark green / dark red background tint, uppercase label in accent colour, countdown large and coloured, progress bar inline below the label. Cleaner than the previous card-with-gradient approach.
+- **Main meter** — dark surface card with icon, uppercase label, phase cells on even darker background.
+- **Circuit cards** — dark surface, circuit name in muted colour, power value prominent in `#e2e8f0`; inactive circuits show the value dimmed (`#374151`). Active border accent is a thin 2 px left stripe (green or amber for critical).
+- **3-phase circuits** — separate `.three-phase-card` class, consistent with single-phase style.
+- **Schedule, timeline, devices** — all updated to dark palette. Section labels use left border accent on dark colour.
+- **Toggles** — slightly smaller (32 px), dark-off (`#374151`), dark-green-on (`#16a34a`).
+- **Load bar** — reduced to 3 px, dark track (`#1f2937`), no zone gradient (gradient was only visible on light backgrounds).
+
+---
+
+## [3.0.4] - 2026-06-03
+
+### Fixed
+- **Dashboards freezing after a few updates** — removing `shouldUpdate` in 3.0.2 fixed the Lit lifecycle interference but left the card re-rendering on every single entity state change in HA (potentially hundreds per second), saturating the JS event loop. Replaced with a custom `hass` getter/setter: HA can always set the property, but `requestUpdate` is only called when a tracked entity actually changes. This is the standard HA pattern for performance-sensitive cards and avoids touching any Lit internal lifecycle methods.
+
+---
+
 ## [3.0.3] - 2026-06-03
 
 ### Fixed

@@ -1447,7 +1447,9 @@ let ElectricityPanelCard = class extends i {
     const hdo = this._config.hdo;
     if (!(hdo == null ? void 0 : hdo.nt_price) && !(hdo == null ? void 0 : hdo.vt_price)) return "";
     const isNT = this._isOn(hdo.switch);
-    const price = isNT ? hdo.nt_price ?? 0 : hdo.vt_price ?? 0;
+    const ntPrice = parseFloat(hdo.nt_price) || 0;
+    const vtPrice = parseFloat(hdo.vt_price) || 0;
+    const price = isNT ? ntPrice : vtPrice;
     const cur = hdo.currency ?? "Kč";
     return `${(watts / 1e3 * price).toFixed(2)} ${cur}/h`;
   }
@@ -1542,23 +1544,47 @@ let ElectricityPanelCard = class extends i {
     return [...new Set(ids)];
   }
   async _fetchHistory() {
+    var _a2;
     if (!this._hass || !this._config || this._historyFetching) return;
-    const ids = this._graphEntityIds();
-    if (ids.length === 0) return;
+    const graphIds = this._graphEntityIds();
+    const hdoSwitch = (_a2 = this._config.hdo) == null ? void 0 : _a2.switch;
+    if (graphIds.length === 0 && !hdoSwitch) return;
     this._historyFetching = true;
     const hours = this._config.graph_hours ?? 3;
-    const start = new Date(Date.now() - hours * 36e5).toISOString();
-    try {
-      const raw = await this._hass.callWS({
-        type: "history/history_during_period",
-        start_time: start,
-        entity_ids: ids,
-        no_attributes: true,
-        significant_changes_only: false
-      });
+    const graphStart = new Date(Date.now() - hours * 36e5).toISOString();
+    const midnight = /* @__PURE__ */ new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const midnightStr = midnight.toISOString();
+    const processEntries = (raw, switchIds) => {
       for (const [id, entries] of Object.entries(raw)) {
-        const pts = entries.map((e2) => ({ t: new Date(e2.last_changed).getTime(), v: parseFloat(e2.state) })).filter((p2) => !isNaN(p2.v));
+        const isSwitch = switchIds.includes(id);
+        const pts = entries.map((e2) => ({
+          t: new Date(e2.last_changed).getTime(),
+          v: isSwitch ? e2.state === "on" ? 1 : 0 : parseFloat(e2.state)
+        })).filter((p2) => !isNaN(p2.v));
         if (pts.length > 0) this._historyCache.set(id, pts);
+      }
+    };
+    try {
+      if (graphIds.length > 0) {
+        const raw = await this._hass.callWS({
+          type: "history/history_during_period",
+          start_time: graphStart,
+          entity_ids: graphIds,
+          no_attributes: true,
+          significant_changes_only: false
+        });
+        processEntries(raw, []);
+      }
+      if (hdoSwitch) {
+        const hdoRaw = await this._hass.callWS({
+          type: "history/history_during_period",
+          start_time: midnightStr,
+          entity_ids: [hdoSwitch],
+          no_attributes: true,
+          significant_changes_only: false
+        });
+        processEntries(hdoRaw, [hdoSwitch]);
       }
       this.requestUpdate();
     } catch {
@@ -1566,38 +1592,56 @@ let ElectricityPanelCard = class extends i {
       this._historyFetching = false;
     }
   }
-  _calcDailyCost(powerEntityId) {
+  _isNTAt(t2) {
+    const hdo = this._config.hdo;
+    if (!hdo) return false;
+    if (hdo.switch) {
+      const hdoHist = this._historyCache.get(hdo.switch);
+      if (hdoHist && hdoHist.length > 0) {
+        let state2 = hdoHist[0].v;
+        for (const pt of hdoHist) {
+          if (pt.t <= t2) state2 = pt.v;
+          else break;
+        }
+        return state2 > 0.5;
+      }
+    }
+    const preset = hdo.tariff_preset ? PRE_TARIFFS[hdo.tariff_preset] : void 0;
+    const src = preset ?? hdo.schedule;
+    if (src) {
+      const midnight = /* @__PURE__ */ new Date();
+      midnight.setHours(0, 0, 0, 0);
+      const dt = this._dayType();
+      const day = dt === "holiday" && src.holiday ? src.holiday : dt === "weekend" ? src.weekend : src.weekday;
+      return day.starts.some((start, i2) => {
+        const [h2, m2] = start.split(":").map(Number);
+        const s2 = midnight.getTime() + (h2 * 60 + m2) * 6e4;
+        return t2 >= s2 && t2 < s2 + day.offsets[i2] * 6e4;
+      });
+    }
+    return this._isOn(hdo.switch);
+  }
+  _calcDailyCost(powerEntityId, fallbackWatts) {
     const hdo = this._config.hdo;
     if (!hdo || !hdo.nt_price && !hdo.vt_price || !powerEntityId) return "";
     const data = this._historyCache.get(powerEntityId);
-    if (!data || data.length < 2) return this._fmtCostRate(this._watts(powerEntityId));
-    const preset = hdo.tariff_preset ? PRE_TARIFFS[hdo.tariff_preset] : void 0;
-    const src = preset ?? hdo.schedule;
+    if (!data || data.length < 2) return this._fmtCostRate(fallbackWatts ?? this._watts(powerEntityId));
     const midnight = /* @__PURE__ */ new Date();
     midnight.setHours(0, 0, 0, 0);
-    let ntWindows = [];
-    if (src) {
-      const dt = this._dayType();
-      const day = dt === "holiday" && src.holiday ? src.holiday : dt === "weekend" ? src.weekend : src.weekday;
-      ntWindows = day.starts.map((start, i2) => {
-        const [h2, m2] = start.split(":").map(Number);
-        const s2 = midnight.getTime() + (h2 * 60 + m2) * 6e4;
-        return { s: s2, e: s2 + day.offsets[i2] * 6e4 };
-      });
-    }
     const todayPts = data.filter((p2) => p2.t >= midnight.getTime());
-    if (todayPts.length < 2) return this._fmtCostRate(this._watts(powerEntityId));
+    if (todayPts.length < 2) return this._fmtCostRate(fallbackWatts ?? this._watts(powerEntityId));
     let ntWh = 0, vtWh = 0;
     for (let i2 = 1; i2 < todayPts.length; i2++) {
       const dtMs = todayPts[i2].t - todayPts[i2 - 1].t;
       const avgW = (todayPts[i2].v + todayPts[i2 - 1].v) / 2;
       const wh = avgW * (dtMs / 36e5);
       const midT = (todayPts[i2].t + todayPts[i2 - 1].t) / 2;
-      const isNT = ntWindows.length > 0 ? ntWindows.some((w) => midT >= w.s && midT < w.e) : this._isOn(hdo.switch);
-      if (isNT) ntWh += wh;
+      if (this._isNTAt(midT)) ntWh += wh;
       else vtWh += wh;
     }
-    const cost = ntWh / 1e3 * (hdo.nt_price ?? 0) + vtWh / 1e3 * (hdo.vt_price ?? 0);
+    const ntP = parseFloat(hdo.nt_price) || 0;
+    const vtP = parseFloat(hdo.vt_price) || 0;
+    const cost = ntWh / 1e3 * ntP + vtWh / 1e3 * vtP;
     if (cost <= 0) return "";
     const cur = hdo.currency ?? "Kč";
     return `${cost.toFixed(2)} ${cur}`;
@@ -1734,7 +1778,7 @@ let ElectricityPanelCard = class extends i {
             <span class="metric-small">
               ${m2.energy_today ? b`${this._kwh(m2.energy_today).toFixed(1)} kWh today` : A}
               ${(() => {
-      const cr = this._calcDailyCost(m2.power_l1 ?? m2.power_l2 ?? m2.power_l3);
+      const cr = this._calcDailyCost(m2.power_l1 ?? m2.power_l2 ?? m2.power_l3, totalW);
       return cr ? b`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : A;
     })()}
             </span>
@@ -1886,7 +1930,7 @@ let ElectricityPanelCard = class extends i {
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c2.id);
     const hasDevices = (((_a2 = c2.devices) == null ? void 0 : _a2.length) ?? 0) > 0;
-    const costRate = totalPower > 0 ? this._calcDailyCost(c2.power ?? c2.power_l1) : "";
+    const costRate = totalPower > 0 ? this._calcDailyCost(c2.power ?? c2.power_l1, totalPower) : "";
     return b`
       <div class="three-phase-card ${c2.critical ? "critical" : ""} ${c2.switch && isOn ? "is-on" : ""}">
         <div class="tp-header">

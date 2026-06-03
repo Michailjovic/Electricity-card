@@ -1272,6 +1272,7 @@ let ElectricityPanelCard = class extends i {
   set hass(value) {
     const old = this._hass;
     this._hass = value;
+    if (!old) void this._fetchHistory();
     if (!old || !this._trackedIds.length || this._trackedIds.some((id) => value.states[id] !== old.states[id])) {
       this.requestUpdate("hass", old);
     }
@@ -1529,8 +1530,15 @@ let ElectricityPanelCard = class extends i {
         [circ.power_l1, circ.power_l2, circ.power_l3].forEach((id) => {
           if (id) ids.push(id);
         });
+      } else if (circ.power) {
+        ids.push(circ.power);
       }
+      if (circ.phases === 3 && circ.power) ids.push(circ.power);
     }
+    const mm = this._config.main_meter;
+    if (mm) [mm.power_l1, mm.power_l2, mm.power_l3].forEach((id) => {
+      if (id) ids.push(id);
+    });
     return [...new Set(ids)];
   }
   async _fetchHistory() {
@@ -1557,6 +1565,42 @@ let ElectricityPanelCard = class extends i {
     } finally {
       this._historyFetching = false;
     }
+  }
+  _calcDailyCost(powerEntityId) {
+    const hdo = this._config.hdo;
+    if (!hdo || !hdo.nt_price && !hdo.vt_price || !powerEntityId) return "";
+    const data = this._historyCache.get(powerEntityId);
+    if (!data || data.length < 2) return this._fmtCostRate(this._watts(powerEntityId));
+    const preset = hdo.tariff_preset ? PRE_TARIFFS[hdo.tariff_preset] : void 0;
+    const src = preset ?? hdo.schedule;
+    const midnight = /* @__PURE__ */ new Date();
+    midnight.setHours(0, 0, 0, 0);
+    let ntWindows = [];
+    if (src) {
+      const dt = this._dayType();
+      const day = dt === "holiday" && src.holiday ? src.holiday : dt === "weekend" ? src.weekend : src.weekday;
+      ntWindows = day.starts.map((start, i2) => {
+        const [h2, m2] = start.split(":").map(Number);
+        const s2 = midnight.getTime() + (h2 * 60 + m2) * 6e4;
+        return { s: s2, e: s2 + day.offsets[i2] * 6e4 };
+      });
+    }
+    const todayPts = data.filter((p2) => p2.t >= midnight.getTime());
+    if (todayPts.length < 2) return this._fmtCostRate(this._watts(powerEntityId));
+    let ntWh = 0, vtWh = 0;
+    for (let i2 = 1; i2 < todayPts.length; i2++) {
+      const dtMs = todayPts[i2].t - todayPts[i2 - 1].t;
+      const avgW = (todayPts[i2].v + todayPts[i2 - 1].v) / 2;
+      const wh = avgW * (dtMs / 36e5);
+      const midT = (todayPts[i2].t + todayPts[i2 - 1].t) / 2;
+      const isNT = ntWindows.length > 0 ? ntWindows.some((w) => midT >= w.s && midT < w.e) : this._isOn(hdo.switch);
+      if (isNT) ntWh += wh;
+      else vtWh += wh;
+    }
+    const cost = ntWh / 1e3 * (hdo.nt_price ?? 0) + vtWh / 1e3 * (hdo.vt_price ?? 0);
+    if (cost <= 0) return "";
+    const cur = hdo.currency ?? "Kč";
+    return `${cost.toFixed(2)} ${cur}`;
   }
   _renderSparkline(entityId) {
     if (!entityId) return A;
@@ -1687,7 +1731,13 @@ let ElectricityPanelCard = class extends i {
           </div>
           <div class="meter-total">
             <span class="metric-primary">${(totalW / 1e3).toFixed(2)} kW</span>
-            ${m2.energy_today ? b`<span class="metric-small">${this._kwh(m2.energy_today).toFixed(1)} kWh today</span>` : A}
+            <span class="metric-small">
+              ${m2.energy_today ? b`${this._kwh(m2.energy_today).toFixed(1)} kWh today` : A}
+              ${(() => {
+      const cr = this._calcDailyCost(m2.power_l1 ?? m2.power_l2 ?? m2.power_l3);
+      return cr ? b`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : A;
+    })()}
+            </span>
           </div>
         </div>
         <div class="phases-grid">
@@ -1715,7 +1765,7 @@ let ElectricityPanelCard = class extends i {
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c2.id);
     const hasDevices = (((_a2 = c2.devices) == null ? void 0 : _a2.length) ?? 0) > 0;
-    const costRate = power > 0 ? this._fmtCostRate(power) : "";
+    const costRate = power > 0 ? this._calcDailyCost(c2.power) : "";
     return b`
       <div class="circuit-card ${c2.critical ? "critical" : ""} ${c2.switch && isOn ? "is-on" : ""}">
 
@@ -1836,7 +1886,7 @@ let ElectricityPanelCard = class extends i {
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c2.id);
     const hasDevices = (((_a2 = c2.devices) == null ? void 0 : _a2.length) ?? 0) > 0;
-    const costRate = totalPower > 0 ? this._fmtCostRate(totalPower) : "";
+    const costRate = totalPower > 0 ? this._calcDailyCost(c2.power ?? c2.power_l1) : "";
     return b`
       <div class="three-phase-card ${c2.critical ? "critical" : ""} ${c2.switch && isOn ? "is-on" : ""}">
         <div class="tp-header">

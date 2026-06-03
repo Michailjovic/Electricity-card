@@ -30,6 +30,8 @@ export class ElectricityPanelCard extends LitElement {
   set hass(value: HomeAssistant) {
     const old = this._hass;
     this._hass = value;
+    // First hass assignment — HA sets hass after setConfig, so fetch history now
+    if (!old) void this._fetchHistory();
     if (!old || !this._trackedIds.length ||
         this._trackedIds.some(id => value.states[id] !== old.states[id])) {
       this.requestUpdate('hass', old);
@@ -318,11 +320,19 @@ export class ElectricityPanelCard extends LitElement {
   private _graphEntityIds(): string[] {
     if (!this._config) return [];
     const ids: string[] = [];
+    // 3-phase per-phase entities (for sparklines)
     for (const circ of this._config.circuits ?? []) {
       if (circ.phases === 3) {
         [circ.power_l1, circ.power_l2, circ.power_l3].forEach(id => { if (id) ids.push(id); });
+      } else if (circ.power) {
+        ids.push(circ.power);
       }
+      // Also fetch total power for 3-phase circuits (for cost calc)
+      if (circ.phases === 3 && circ.power) ids.push(circ.power);
     }
+    // Main meter phases for cost calc
+    const mm = this._config.main_meter;
+    if (mm) [mm.power_l1, mm.power_l2, mm.power_l3].forEach(id => { if (id) ids.push(id); });
     return [...new Set(ids)];
   }
 
@@ -353,6 +363,52 @@ export class ElectricityPanelCard extends LitElement {
     } finally {
       this._historyFetching = false;
     }
+  }
+
+
+  private _calcDailyCost(powerEntityId: string | undefined): string {
+    const hdo = this._config.hdo;
+    if (!hdo || (!hdo.nt_price && !hdo.vt_price) || !powerEntityId) return '';
+    const data = this._historyCache.get(powerEntityId);
+    if (!data || data.length < 2) return this._fmtCostRate(this._watts(powerEntityId));
+
+    // Determine NT windows from schedule/preset
+    const preset = hdo.tariff_preset ? PRE_TARIFFS[hdo.tariff_preset] : undefined;
+    const src = preset ?? hdo.schedule;
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+
+    let ntWindows: Array<{s: number; e: number}> = [];
+    if (src) {
+      const dt = this._dayType();
+      const day = (dt === 'holiday' && src.holiday) ? src.holiday
+        : dt === 'weekend' ? src.weekend : src.weekday;
+      ntWindows = day.starts.map((start, i) => {
+        const [h, m] = start.split(':').map(Number);
+        const s = midnight.getTime() + (h * 60 + m) * 60000;
+        return { s, e: s + day.offsets[i] * 60000 };
+      });
+    }
+
+    // Integrate power history; only today's data
+    const todayPts = data.filter(p => p.t >= midnight.getTime());
+    if (todayPts.length < 2) return this._fmtCostRate(this._watts(powerEntityId));
+
+    let ntWh = 0, vtWh = 0;
+    for (let i = 1; i < todayPts.length; i++) {
+      const dtMs = todayPts[i].t - todayPts[i - 1].t;
+      const avgW = (todayPts[i].v + todayPts[i - 1].v) / 2;
+      const wh = avgW * (dtMs / 3_600_000);
+      const midT = (todayPts[i].t + todayPts[i - 1].t) / 2;
+      const isNT = ntWindows.length > 0
+        ? ntWindows.some(w => midT >= w.s && midT < w.e)
+        : this._isOn(hdo.switch); // fallback: use current switch state
+      if (isNT) ntWh += wh; else vtWh += wh;
+    }
+
+    const cost = (ntWh / 1000) * (hdo.nt_price ?? 0) + (vtWh / 1000) * (hdo.vt_price ?? 0);
+    if (cost <= 0) return '';
+    const cur = hdo.currency ?? 'Kč';
+    return `${cost.toFixed(2)} ${cur}`;
   }
 
   private _renderSparkline(entityId: string | undefined): TemplateResult | typeof nothing {
@@ -493,9 +549,10 @@ export class ElectricityPanelCard extends LitElement {
           </div>
           <div class="meter-total">
             <span class="metric-primary">${(totalW / 1000).toFixed(2)} kW</span>
-            ${m.energy_today
-              ? html`<span class="metric-small">${this._kwh(m.energy_today).toFixed(1)} kWh today</span>`
-              : nothing}
+            <span class="metric-small">
+              ${m.energy_today ? html`${this._kwh(m.energy_today).toFixed(1)} kWh today` : nothing}
+              ${(() => { const cr = this._calcDailyCost(m.power_l1 ?? m.power_l2 ?? m.power_l3); return cr ? html`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : nothing; })()}
+            </span>
           </div>
         </div>
         <div class="phases-grid">
@@ -526,7 +583,7 @@ export class ElectricityPanelCard extends LitElement {
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c.id);
     const hasDevices = (c.devices?.length ?? 0) > 0;
-    const costRate = power > 0 ? this._fmtCostRate(power) : '';
+    const costRate = power > 0 ? this._calcDailyCost(c.power) : '';
 
     return html`
       <div class="circuit-card ${c.critical ? 'critical' : ''} ${c.switch && isOn ? 'is-on' : ''}">
@@ -676,7 +733,7 @@ export class ElectricityPanelCard extends LitElement {
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c.id);
     const hasDevices = (c.devices?.length ?? 0) > 0;
-    const costRate = totalPower > 0 ? this._fmtCostRate(totalPower) : '';
+    const costRate = totalPower > 0 ? this._calcDailyCost(c.power ?? c.power_l1) : '';
 
     return html`
       <div class="three-phase-card ${c.critical ? 'critical' : ''} ${c.switch && isOn ? 'is-on' : ''}">

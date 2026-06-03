@@ -42,16 +42,22 @@ export class ElectricityPanelCard extends LitElement {
   @state() private _scheduleExpanded = false;
 
   private _timer?: number;
+  private _historyTimer?: number;
   private _trackedIds: string[] = [];
+  private _historyCache = new Map<string, Array<{t: number; v: number}>>();
+  private _historyFetching = false;
 
   override connectedCallback(): void {
     super.connectedCallback();
     this._timer = window.setInterval(() => this.requestUpdate(), 30_000);
+    this._historyTimer = window.setInterval(() => { void this._fetchHistory(); }, 300_000);
+    void this._fetchHistory();
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     clearInterval(this._timer);
+    clearInterval(this._historyTimer);
   }
 
   // ── HA card API ────────────────────────────────────────────────────────────
@@ -60,6 +66,8 @@ export class ElectricityPanelCard extends LitElement {
     if (!config) throw new Error('Invalid configuration');
     this._config = config;
     this._trackedIds = this._buildTrackedIds();
+    this._historyCache.clear();
+    void this._fetchHistory();
   }
 
   private _buildTrackedIds(): string[] {
@@ -305,6 +313,69 @@ export class ElectricityPanelCard extends LitElement {
     `;
   }
 
+  // ── History & sparklines ──────────────────────────────────────────────────
+
+  private _graphEntityIds(): string[] {
+    if (!this._config) return [];
+    const ids: string[] = [];
+    for (const circ of this._config.circuits ?? []) {
+      if (circ.phases === 3) {
+        [circ.power_l1, circ.power_l2, circ.power_l3].forEach(id => { if (id) ids.push(id); });
+      }
+    }
+    return [...new Set(ids)];
+  }
+
+  private async _fetchHistory(): Promise<void> {
+    if (!this._hass || !this._config || this._historyFetching) return;
+    const ids = this._graphEntityIds();
+    if (ids.length === 0) return;
+    this._historyFetching = true;
+    const hours = this._config.graph_hours ?? 3;
+    const start = new Date(Date.now() - hours * 3_600_000).toISOString();
+    try {
+      const raw = await this._hass.callWS<Record<string, Array<{state: string; last_changed: string}>>>({
+        type: 'history/history_during_period',
+        start_time: start,
+        entity_ids: ids,
+        no_attributes: true,
+        significant_changes_only: false,
+      });
+      for (const [id, entries] of Object.entries(raw)) {
+        const pts = entries
+          .map(e => ({ t: new Date(e.last_changed).getTime(), v: parseFloat(e.state) }))
+          .filter(p => !isNaN(p.v));
+        if (pts.length > 0) this._historyCache.set(id, pts);
+      }
+      this.requestUpdate();
+    } catch {
+      // history unavailable or not configured
+    } finally {
+      this._historyFetching = false;
+    }
+  }
+
+  private _renderSparkline(entityId: string | undefined): TemplateResult | typeof nothing {
+    if (!entityId) return nothing;
+    const data = this._historyCache.get(entityId);
+    if (!data || data.length < 2) return nothing;
+    const W = 100, H = 34, pad = 2;
+    const tMin = data[0].t, tMax = data[data.length - 1].t;
+    const tRange = tMax - tMin || 1;
+    const vals = data.map(p => p.v);
+    const vMin = Math.min(...vals), vMax = Math.max(...vals);
+    const vRange = vMax - vMin || 0.01;
+    const pts = data.map(p => {
+      const x = ((p.t - tMin) / tRange) * W;
+      const y = (H - pad) - ((p.v - vMin) / vRange) * (H - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    return html`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="sparkline">
+      <polyline points="${pts}" fill="none" stroke="#ef4444" stroke-width="1.5"
+        stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>`;
+  }
+
   // ── Render: HDO schedule ───────────────────────────────────────────────────
 
   private _renderHdoSchedule(): TemplateResult | typeof nothing {
@@ -433,6 +504,7 @@ export class ElectricityPanelCard extends LitElement {
               <div class="phase-label">${p.label}</div>
               <div class="phase-power">${(this._watts(p.power) / 1000).toFixed(2)} kW</div>
               <div class="phase-detail">${this._num(p.current).toFixed(1)} A</div>
+              ${this._renderSparkline(p.power)}
             </div>
           `)}
         </div>
@@ -641,6 +713,7 @@ export class ElectricityPanelCard extends LitElement {
               <div class="phase-label">${p.label}</div>
               <div class="phase-power">${(this._watts(p.power) / 1000).toFixed(2)} kW</div>
               <div class="phase-detail">${this._num(p.current).toFixed(1)} A</div>
+              ${this._renderSparkline(p.power)}
             </div>
           `)}
         </div>
@@ -863,6 +936,8 @@ export class ElectricityPanelCard extends LitElement {
     .note-row { opacity: .6; }
     .note-icon { --mdc-icon-size: 12px; color: #4b5568; flex-shrink: 0; }
     .note-row .device-name { font-style: italic; }
+
+    .sparkline { width: 100%; height: 34px; display: block; margin-top: 5px; overflow: visible; }
   `;
 }
 

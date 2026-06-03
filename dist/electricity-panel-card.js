@@ -1097,6 +1097,12 @@ let ElectricityPanelEditor = class extends i {
       (v2) => this._set(["title"], v2),
       "Electricity panel"
     )}
+        ${this._numField(
+      "History graph period (h, 1–24)",
+      this._config.graph_hours,
+      (v2) => this._set(["graph_hours"], Math.max(1, Math.min(24, parseFloat(v2) || 3))),
+      "3"
+    )}
         ${this._renderMeterSection()}
         ${this._renderHdoSection()}
         <div class="sec-hdr">Circuits</div>
@@ -1257,6 +1263,8 @@ let ElectricityPanelCard = class extends i {
     this._showTomorrow = false;
     this._scheduleExpanded = false;
     this._trackedIds = [];
+    this._historyCache = /* @__PURE__ */ new Map();
+    this._historyFetching = false;
   }
   get hass() {
     return this._hass;
@@ -1271,16 +1279,23 @@ let ElectricityPanelCard = class extends i {
   connectedCallback() {
     super.connectedCallback();
     this._timer = window.setInterval(() => this.requestUpdate(), 3e4);
+    this._historyTimer = window.setInterval(() => {
+      void this._fetchHistory();
+    }, 3e5);
+    void this._fetchHistory();
   }
   disconnectedCallback() {
     super.disconnectedCallback();
     clearInterval(this._timer);
+    clearInterval(this._historyTimer);
   }
   // ── HA card API ────────────────────────────────────────────────────────────
   setConfig(config) {
     if (!config) throw new Error("Invalid configuration");
     this._config = config;
     this._trackedIds = this._buildTrackedIds();
+    this._historyCache.clear();
+    void this._fetchHistory();
   }
   _buildTrackedIds() {
     if (!this._config) return [];
@@ -1505,6 +1520,64 @@ let ElectricityPanelCard = class extends i {
       </div>
     `;
   }
+  // ── History & sparklines ──────────────────────────────────────────────────
+  _graphEntityIds() {
+    if (!this._config) return [];
+    const ids = [];
+    for (const circ of this._config.circuits ?? []) {
+      if (circ.phases === 3) {
+        [circ.power_l1, circ.power_l2, circ.power_l3].forEach((id) => {
+          if (id) ids.push(id);
+        });
+      }
+    }
+    return [...new Set(ids)];
+  }
+  async _fetchHistory() {
+    if (!this._hass || !this._config || this._historyFetching) return;
+    const ids = this._graphEntityIds();
+    if (ids.length === 0) return;
+    this._historyFetching = true;
+    const hours = this._config.graph_hours ?? 3;
+    const start = new Date(Date.now() - hours * 36e5).toISOString();
+    try {
+      const raw = await this._hass.callWS({
+        type: "history/history_during_period",
+        start_time: start,
+        entity_ids: ids,
+        no_attributes: true,
+        significant_changes_only: false
+      });
+      for (const [id, entries] of Object.entries(raw)) {
+        const pts = entries.map((e2) => ({ t: new Date(e2.last_changed).getTime(), v: parseFloat(e2.state) })).filter((p2) => !isNaN(p2.v));
+        if (pts.length > 0) this._historyCache.set(id, pts);
+      }
+      this.requestUpdate();
+    } catch {
+    } finally {
+      this._historyFetching = false;
+    }
+  }
+  _renderSparkline(entityId) {
+    if (!entityId) return A;
+    const data = this._historyCache.get(entityId);
+    if (!data || data.length < 2) return A;
+    const W = 100, H2 = 34, pad = 2;
+    const tMin = data[0].t, tMax = data[data.length - 1].t;
+    const tRange = tMax - tMin || 1;
+    const vals = data.map((p2) => p2.v);
+    const vMin = Math.min(...vals), vMax = Math.max(...vals);
+    const vRange = vMax - vMin || 0.01;
+    const pts = data.map((p2) => {
+      const x2 = (p2.t - tMin) / tRange * W;
+      const y3 = H2 - pad - (p2.v - vMin) / vRange * (H2 - pad * 2);
+      return `${x2.toFixed(1)},${y3.toFixed(1)}`;
+    }).join(" ");
+    return b`<svg viewBox="0 0 ${W} ${H2}" preserveAspectRatio="none" class="sparkline">
+      <polyline points="${pts}" fill="none" stroke="#ef4444" stroke-width="1.5"
+        stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>`;
+  }
   // ── Render: HDO schedule ───────────────────────────────────────────────────
   _renderHdoSchedule() {
     const hdo = this._config.hdo;
@@ -1623,6 +1696,7 @@ let ElectricityPanelCard = class extends i {
               <div class="phase-label">${p2.label}</div>
               <div class="phase-power">${(this._watts(p2.power) / 1e3).toFixed(2)} kW</div>
               <div class="phase-detail">${this._num(p2.current).toFixed(1)} A</div>
+              ${this._renderSparkline(p2.power)}
             </div>
           `)}
         </div>
@@ -1794,6 +1868,7 @@ let ElectricityPanelCard = class extends i {
               <div class="phase-label">${p2.label}</div>
               <div class="phase-power">${(this._watts(p2.power) / 1e3).toFixed(2)} kW</div>
               <div class="phase-detail">${this._num(p2.current).toFixed(1)} A</div>
+              ${this._renderSparkline(p2.power)}
             </div>
           `)}
         </div>
@@ -2004,6 +2079,8 @@ ElectricityPanelCard.styles = i$3`
     .note-row { opacity: .6; }
     .note-icon { --mdc-icon-size: 12px; color: #4b5568; flex-shrink: 0; }
     .note-row .device-name { font-style: italic; }
+
+    .sparkline { width: 100%; height: 34px; display: block; margin-top: 5px; overflow: visible; }
   `;
 __decorateClass([
   r()

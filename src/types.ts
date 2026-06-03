@@ -13,6 +13,7 @@ export interface HomeAssistant {
     service: string,
     data: Record<string, unknown>
   ): Promise<void>;
+  callWS<T = unknown>(msg: Record<string, unknown>): Promise<T>;
 }
 
 // ── Card config types ────────────────────────────────────────────────────────
@@ -121,4 +122,6 @@ export interface ElectricityPanelConfig {
   hdo?: HdoConfig;
   /** Ordered list of circuits — 3-phase circuits are rendered in their own row */
   circuits?: Circuit[];
+  /** History window for sparkline graphs in 3-phase phase cells (hours, 1–24, default 3) */
+  graph_hours?: number;
 }

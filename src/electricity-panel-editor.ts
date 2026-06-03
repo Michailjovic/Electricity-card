@@ -446,6 +446,8 @@ export class ElectricityPanelEditor extends LitElement {
       <div class="editor">
         ${this._textField('Card title (optional)', this._config.title,
           (v) => this._set(['title'], v), 'Electricity panel')}
+        ${this._numField('History graph period (h, 1–24)', this._config.graph_hours as number | undefined,
+          (v) => this._set(['graph_hours'], Math.max(1, Math.min(24, parseFloat(v) || 3))), '3')}
         ${this._renderMeterSection()}
         ${this._renderHdoSection()}
         <div class="sec-hdr">Circuits</div>

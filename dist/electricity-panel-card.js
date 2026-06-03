@@ -1295,7 +1295,7 @@ let ElectricityPanelCard = class extends i {
     if (!config) throw new Error("Invalid configuration");
     this._config = config;
     this._trackedIds = this._buildTrackedIds();
-    this._historyCache.clear();
+    if (!this._historyFetching) this._historyCache.clear();
     void this._fetchHistory();
   }
   _buildTrackedIds() {
@@ -1556,14 +1556,30 @@ let ElectricityPanelCard = class extends i {
     midnight.setHours(0, 0, 0, 0);
     const midnightStr = midnight.toISOString();
     const processEntries = (raw, switchIds) => {
+      const cacheRef = this._historyCache;
+      let written = 0;
       for (const [id, entries] of Object.entries(raw)) {
+        if (!Array.isArray(entries)) {
+          console.warn(`[ep-card] ${id}: entries not Array (${typeof entries})`);
+          continue;
+        }
         const isSwitch = switchIds.includes(id);
-        const pts = entries.map((e2) => ({
-          t: new Date(e2.last_changed).getTime(),
-          v: isSwitch ? e2.state === "on" ? 1 : 0 : parseFloat(e2.state)
-        })).filter((p2) => !isNaN(p2.v));
-        if (pts.length > 0) this._historyCache.set(id, pts);
+        const pts = entries.map((e2) => {
+          const stateStr = e2.s ?? e2.state ?? "";
+          const tSec = e2.lc ?? e2.lu;
+          const t2 = tSec !== void 0 ? tSec * 1e3 : e2.last_changed ? new Date(e2.last_changed).getTime() : NaN;
+          const v2 = isSwitch ? stateStr === "on" ? 1 : 0 : parseFloat(stateStr);
+          return { t: t2, v: v2 };
+        }).filter((p2) => !isNaN(p2.v) && !isNaN(p2.t) && p2.t > 0);
+        if (pts.length > 0) {
+          cacheRef.set(id, pts);
+          written++;
+        } else {
+          const s2 = JSON.stringify(entries.slice(0, 2).map((e2) => ({ s: e2.s, state: e2.state, lu: e2.lu, lc: e2.lc })));
+          console.warn(`[ep-card] ${id}: 0 pts from ${entries.length} entries, sample: ${s2}`);
+        }
       }
+      console.log(`[ep-card] processEntries: ${written}/${Object.keys(raw).length} written, cache=${cacheRef.size}`);
     };
     if (typeof this._hass.callWS !== "function") {
       console.error("[ep-card] hass.callWS is not available on this HA version");

@@ -68,7 +68,8 @@ export class ElectricityPanelCard extends LitElement {
     if (!config) throw new Error('Invalid configuration');
     this._config = config;
     this._trackedIds = this._buildTrackedIds();
-    this._historyCache.clear();
+    // Avoid clearing cache while a fetch is in progress (race condition)
+    if (!this._historyFetching) this._historyCache.clear();
     void this._fetchHistory();
   }
 
@@ -348,15 +349,36 @@ export class ElectricityPanelCard extends LitElement {
     const graphStart = new Date(Date.now() - hours * 3_600_000).toISOString();
     const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
     const midnightStr = midnight.toISOString();
-    const processEntries = (raw: Record<string, Array<{state: string; last_changed: string}>>, switchIds: string[]) => {
+    // HA 2023.3+ compressed format: s=state, lu=last_updated, lc=last_changed (unix float seconds)
+    // Older HA: state (string), last_changed (ISO string)
+    type HistEntry = { s?: string; state?: string; lu?: number; lc?: number; last_changed?: string };
+    const processEntries = (raw: Record<string, Array<HistEntry>>, switchIds: string[]) => {
+      const cacheRef = this._historyCache;
+      let written = 0;
       for (const [id, entries] of Object.entries(raw)) {
+        if (!Array.isArray(entries)) {
+          console.warn(`[ep-card] ${id}: entries not Array (${typeof entries})`);
+          continue;
+        }
         const isSwitch = switchIds.includes(id);
-        const pts = entries.map(e => ({
-          t: new Date(e.last_changed).getTime(),
-          v: isSwitch ? (e.state === 'on' ? 1 : 0) : parseFloat(e.state),
-        })).filter(p => !isNaN(p.v));
-        if (pts.length > 0) this._historyCache.set(id, pts);
+        const pts = entries.map(e => {
+          const stateStr = e.s ?? e.state ?? '';
+          const tSec = e.lc ?? e.lu;
+          const t = tSec !== undefined
+            ? tSec * 1000
+            : e.last_changed ? new Date(e.last_changed).getTime() : NaN;
+          const v = isSwitch ? (stateStr === 'on' ? 1 : 0) : parseFloat(stateStr);
+          return { t, v };
+        }).filter(p => !isNaN(p.v) && !isNaN(p.t) && p.t > 0);
+        if (pts.length > 0) {
+          cacheRef.set(id, pts);
+          written++;
+        } else {
+          const s = JSON.stringify(entries.slice(0, 2).map(e => ({ s: e.s, state: e.state, lu: e.lu, lc: e.lc })));
+          console.warn(`[ep-card] ${id}: 0 pts from ${entries.length} entries, sample: ${s}`);
+        }
       }
+      console.log(`[ep-card] processEntries: ${written}/${Object.keys(raw).length} written, cache=${cacheRef.size}`);
     };
     // Verify callWS is available
     if (typeof (this._hass as Record<string, unknown>).callWS !== 'function') {

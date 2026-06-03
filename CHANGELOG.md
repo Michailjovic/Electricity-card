@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.2.2] - 2026-06-03
+
+### Fixed
+- **Devices under single-phase breakers shown in one column** — devices were rendered in the 3-column `.tp-devices-grid` intended for 3-phase circuits. Single-phase breakers now use a flat `.devices-list` — full width, single column.
+
+### Changed
+- History fetch errors are now logged as `console.warn` to aid debugging when sparkline graphs do not appear.
+
+---
+
 ## [4.0.0] - 2026-06-03
 
 ### Changed — Dark visual redesign

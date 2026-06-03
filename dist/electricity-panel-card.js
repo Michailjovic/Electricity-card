@@ -1587,7 +1587,8 @@ let ElectricityPanelCard = class extends i {
         processEntries(hdoRaw, [hdoSwitch]);
       }
       this.requestUpdate();
-    } catch {
+    } catch (err) {
+      console.warn("[electricity-panel-card] history fetch failed:", err);
     } finally {
       this._historyFetching = false;
     }
@@ -1843,7 +1844,7 @@ let ElectricityPanelCard = class extends i {
               </button>` : A}
         </div>
 
-        ${expanded && hasDevices ? b`<div class="tp-devices-grid">${c2.devices.map((d2) => b`<div class="tp-device-col">${this._renderDevice(d2)}</div>`)}</div>` : A}
+        ${expanded && hasDevices ? b`<div class="devices-list">${c2.devices.map((d2) => this._renderDevice(d2))}</div>` : A}
       </div>
     `;
   }
@@ -2159,6 +2160,7 @@ ElectricityPanelCard.styles = i$3`
     .expand-btn span { font-size: 10px; }
 
     .tp-devices-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
+    .devices-list { display: flex; flex-direction: column; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
     .tp-device-col { min-width: 0; }
     .tp-device-col .device-group-label { padding-left: 0; }
     .tp-device-col .device-row { padding-left: 0; }

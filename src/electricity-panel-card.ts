@@ -381,8 +381,8 @@ export class ElectricityPanelCard extends LitElement {
         processEntries(hdoRaw, [hdoSwitch]);
       }
       this.requestUpdate();
-    } catch {
-      // history unavailable or not configured
+    } catch (err) {
+      console.warn('[electricity-panel-card] history fetch failed:', err);
     } finally {
       this._historyFetching = false;
     }
@@ -659,7 +659,7 @@ export class ElectricityPanelCard extends LitElement {
         </div>
 
         ${expanded && hasDevices
-          ? html`<div class="tp-devices-grid">${c.devices!.map(d => html`<div class="tp-device-col">${this._renderDevice(d)}</div>`)}</div>`
+          ? html`<div class="devices-list">${c.devices!.map(d => this._renderDevice(d))}</div>`
           : nothing}
       </div>
     `;
@@ -1013,6 +1013,7 @@ export class ElectricityPanelCard extends LitElement {
     .expand-btn span { font-size: 10px; }
 
     .tp-devices-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
+    .devices-list { display: flex; flex-direction: column; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
     .tp-device-col { min-width: 0; }
     .tp-device-col .device-group-label { padding-left: 0; }
     .tp-device-col .device-row { padding-left: 0; }

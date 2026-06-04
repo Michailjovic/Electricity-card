@@ -994,7 +994,7 @@ export class ElectricityPanelCard extends LitElement {
     .tl-seg.past { opacity: .3; }
     .tl-seg.active.nt { box-shadow: 0 0 4px rgba(34,197,94,.5); }
     .tl-seg.active.vt { background: #ef4444; }
-    .timeline-now { position: absolute; top: -2px; bottom: -2px; width: 4px; background: #f59e0b; border-radius: 2px; pointer-events: none; box-shadow: 0 0 4px rgba(245,158,11,.6); }
+    .timeline-now { position: absolute; top: -2px; bottom: -2px; width: 4px; background: #fff; border-radius: 2px; pointer-events: none; box-shadow: -1px 0 0 #000, 1px 0 0 #000; }
 
     .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: #4b5568; margin: 12px 0 6px; padding-left: 7px; border-left: 2px solid #252a35; }
 

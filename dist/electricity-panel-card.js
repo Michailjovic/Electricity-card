@@ -1656,26 +1656,34 @@ let ElectricityPanelCard = class extends i {
     }
     return this._isOn(hdo.switch);
   }
-  _calcDailyCost(powerEntityId) {
+  /** Accumulate today's energy cost across one or more power entities (W).
+   *  Entities are integrated independently and summed — correct for multi-phase
+   *  circuits where each phase has its own history entity. */
+  _calcDailyCost(...entityIds) {
     const hdo = this._config.hdo;
-    if (!hdo || !hdo.nt_price && !hdo.vt_price || !powerEntityId) return "";
-    const data = this._historyCache.get(powerEntityId);
-    if (!data || data.length < 2) return "";
+    if (!hdo || !hdo.nt_price && !hdo.vt_price) return "";
     const midnight = /* @__PURE__ */ new Date();
     midnight.setHours(0, 0, 0, 0);
-    const todayPts = data.filter((p2) => p2.t >= midnight.getTime());
-    if (todayPts.length < 2) return "";
     const ntP = parseFloat(hdo.nt_price) || 0;
     const vtP = parseFloat(hdo.vt_price) || 0;
-    let ntWh = 0, vtWh = 0;
-    for (let i2 = 1; i2 < todayPts.length; i2++) {
-      const dtMs = todayPts[i2].t - todayPts[i2 - 1].t;
-      const avgW = (todayPts[i2].v + todayPts[i2 - 1].v) / 2;
-      const wh = avgW * (dtMs / 36e5);
-      const midT = (todayPts[i2].t + todayPts[i2 - 1].t) / 2;
-      if (this._isNTAt(midT)) ntWh += wh;
-      else vtWh += wh;
+    let ntWh = 0, vtWh = 0, hasData = false;
+    for (const id of entityIds) {
+      if (!id) continue;
+      const data = this._historyCache.get(id);
+      if (!data || data.length < 2) continue;
+      const todayPts = data.filter((p2) => p2.t >= midnight.getTime());
+      if (todayPts.length < 2) continue;
+      hasData = true;
+      for (let i2 = 1; i2 < todayPts.length; i2++) {
+        const dtMs = todayPts[i2].t - todayPts[i2 - 1].t;
+        const avgW = (todayPts[i2].v + todayPts[i2 - 1].v) / 2;
+        const wh = avgW * (dtMs / 36e5);
+        const midT = (todayPts[i2].t + todayPts[i2 - 1].t) / 2;
+        if (this._isNTAt(midT)) ntWh += wh;
+        else vtWh += wh;
+      }
     }
+    if (!hasData) return "";
     const cost = ntWh / 1e3 * ntP + vtWh / 1e3 * vtP;
     if (cost < 5e-3) return "";
     const cur = hdo.currency ?? "Kč";
@@ -1813,7 +1821,7 @@ let ElectricityPanelCard = class extends i {
             <span class="metric-small">
               ${m2.energy_today ? b`${this._kwh(m2.energy_today).toFixed(1)} kWh today` : A}
               ${(() => {
-      const cr = this._calcDailyCost(m2.power_l1 ?? m2.power_l2 ?? m2.power_l3);
+      const cr = this._calcDailyCost(m2.power_l1, m2.power_l2, m2.power_l3);
       return cr ? b`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : A;
     })()}
             </span>
@@ -1965,7 +1973,7 @@ let ElectricityPanelCard = class extends i {
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c2.id);
     const hasDevices = (((_a2 = c2.devices) == null ? void 0 : _a2.length) ?? 0) > 0;
-    const costRate = totalPower > 0 ? this._calcDailyCost(c2.power ?? c2.power_l1) : "";
+    const costRate = totalPower > 0 ? this._calcDailyCost(c2.power, c2.power_l1, c2.power_l2, c2.power_l3) : "";
     return b`
       <div class="three-phase-card ${c2.critical ? "critical" : ""} ${c2.switch && isOn ? "is-on" : ""}">
         <div class="tp-header">

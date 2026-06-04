@@ -460,24 +460,32 @@ export class ElectricityPanelCard extends LitElement {
     return this._isOn(hdo.switch);
   }
 
-  private _calcDailyCost(powerEntityId: string | undefined): string {
+  /** Accumulate today's energy cost across one or more power entities (W).
+   *  Entities are integrated independently and summed — correct for multi-phase
+   *  circuits where each phase has its own history entity. */
+  private _calcDailyCost(...entityIds: (string | undefined)[]): string {
     const hdo = this._config.hdo;
-    if (!hdo || (!hdo.nt_price && !hdo.vt_price) || !powerEntityId) return '';
-    const data = this._historyCache.get(powerEntityId);
-    if (!data || data.length < 2) return '';
+    if (!hdo || (!hdo.nt_price && !hdo.vt_price)) return '';
     const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
-    const todayPts = data.filter(p => p.t >= midnight.getTime());
-    if (todayPts.length < 2) return '';
     const ntP = parseFloat(hdo.nt_price as unknown as string) || 0;
     const vtP = parseFloat(hdo.vt_price as unknown as string) || 0;
-    let ntWh = 0, vtWh = 0;
-    for (let i = 1; i < todayPts.length; i++) {
-      const dtMs = todayPts[i].t - todayPts[i - 1].t;
-      const avgW = (todayPts[i].v + todayPts[i - 1].v) / 2;
-      const wh = avgW * (dtMs / 3_600_000);
-      const midT = (todayPts[i].t + todayPts[i - 1].t) / 2;
-      if (this._isNTAt(midT)) ntWh += wh; else vtWh += wh;
+    let ntWh = 0, vtWh = 0, hasData = false;
+    for (const id of entityIds) {
+      if (!id) continue;
+      const data = this._historyCache.get(id);
+      if (!data || data.length < 2) continue;
+      const todayPts = data.filter(p => p.t >= midnight.getTime());
+      if (todayPts.length < 2) continue;
+      hasData = true;
+      for (let i = 1; i < todayPts.length; i++) {
+        const dtMs = todayPts[i].t - todayPts[i - 1].t;
+        const avgW = (todayPts[i].v + todayPts[i - 1].v) / 2;
+        const wh = avgW * (dtMs / 3_600_000);
+        const midT = (todayPts[i].t + todayPts[i - 1].t) / 2;
+        if (this._isNTAt(midT)) ntWh += wh; else vtWh += wh;
+      }
     }
+    if (!hasData) return '';
     const cost = (ntWh / 1000) * ntP + (vtWh / 1000) * vtP;
     if (cost < 0.005) return '';
     const cur = hdo.currency ?? 'Kč';
@@ -624,7 +632,7 @@ export class ElectricityPanelCard extends LitElement {
             <span class="metric-primary">${(totalW / 1000).toFixed(2)} kW</span>
             <span class="metric-small">
               ${m.energy_today ? html`${this._kwh(m.energy_today).toFixed(1)} kWh today` : nothing}
-              ${(() => { const cr = this._calcDailyCost(m.power_l1 ?? m.power_l2 ?? m.power_l3); return cr ? html`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : nothing; })()}
+              ${(() => { const cr = this._calcDailyCost(m.power_l1, m.power_l2, m.power_l3); return cr ? html`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : nothing; })()}
             </span>
           </div>
         </div>
@@ -806,7 +814,7 @@ export class ElectricityPanelCard extends LitElement {
     const barColor = this._loadColor(loadPct);
     const expanded = this._expanded.has(c.id);
     const hasDevices = (c.devices?.length ?? 0) > 0;
-    const costRate = totalPower > 0 ? this._calcDailyCost(c.power ?? c.power_l1) : '';
+    const costRate = totalPower > 0 ? this._calcDailyCost(c.power, c.power_l1, c.power_l2, c.power_l3) : '';
 
     return html`
       <div class="three-phase-card ${c.critical ? 'critical' : ''} ${c.switch && isOn ? 'is-on' : ''}">

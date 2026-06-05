@@ -1845,12 +1845,8 @@ let ElectricityPanelCard = class extends i {
     const vals = data.map((p2) => p2.v);
     const vMin = Math.min(...vals), vMax = Math.max(...vals);
     const vRange = vMax - vMin || 0.01;
-    const xPad = 38;
-    const xStart = labelPos === "left" ? xPad : 0;
-    const xEnd = labelPos === "right" ? W - xPad : W;
-    const xRange2 = xEnd - xStart || 1;
     const coords = data.map((p2) => ({
-      x: xStart + (p2.t - tMin) / tRange * xRange2,
+      x: (p2.t - tMin) / tRange * W,
       y: H2 - pad - (p2.v - vMin) / vRange * (H2 - pad * 2)
     }));
     let linePath = `M ${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
@@ -1861,34 +1857,34 @@ let ElectricityPanelCard = class extends i {
     }
     const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)},${H2} L ${coords[0].x.toFixed(1)},${H2} Z`;
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, "_")}`;
-    const lx = labelPos === "right" ? String(W - 1) : "1";
-    const anchor = labelPos === "right" ? "end" : "start";
     const yMax = pad.toFixed(1);
     const yMin = (H2 - pad).toFixed(1);
     const hideLabels = noLabels || labelPos === "none";
     const refColor = this._config.sparkline_ref_color ?? "rgba(255,255,255,0.35)";
-    return b`<svg viewBox="0 0 ${W} ${H2}" preserveAspectRatio="none" class="sparkline">
-      <defs>
-        <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
-          <stop offset="85%" stop-color="${color}" stop-opacity="0.05"/>
-          <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <path d="${areaPath}" fill="url(#${gid})"/>
-      <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
-        stroke-linejoin="round" stroke-linecap="round"/>
-      <line x1="0" y1="${yMax}" x2="${W}" y2="${yMax}"
-        class="spark-ref${showRef ? "" : " spark-hidden"}"
-        style="stroke:${refColor}"/>
-      <line x1="0" y1="${yMin}" x2="${W}" y2="${yMin}"
-        class="spark-ref${showRef ? "" : " spark-hidden"}"
-        style="stroke:${refColor}"/>
-      <text x="${lx}" y="10" text-anchor="${anchor}" font-size="8"
-        class="spark-label${hideLabels ? " spark-hidden" : ""}">${this._fmtW(vMax)}</text>
-      <text x="${lx}" y="${H2 - 2}" text-anchor="${anchor}" font-size="8"
-        class="spark-label spark-label-min${hideLabels ? " spark-hidden" : ""}">${this._fmtW(vMin)}</text>
-    </svg>`;
+    return b`
+      <div class="sparkline-wrap">
+        <svg viewBox="0 0 ${W} ${H2}" preserveAspectRatio="none" class="sparkline">
+          <defs>
+            <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+              <stop offset="85%" stop-color="${color}" stop-opacity="0.05"/>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="${areaPath}" fill="url(#${gid})"/>
+          <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
+            stroke-linejoin="round" stroke-linecap="round"/>
+          <line x1="0" y1="${yMax}" x2="${W}" y2="${yMax}"
+            class="spark-ref${showRef ? "" : " spark-hidden"}" style="stroke:${refColor}"/>
+          <line x1="0" y1="${yMin}" x2="${W}" y2="${yMin}"
+            class="spark-ref${showRef ? "" : " spark-hidden"}" style="stroke:${refColor}"/>
+        </svg>
+        ${!hideLabels ? b`
+          <div class="spark-lbls spark-lbls-${labelPos}">
+            <span class="spark-lbl-max">${this._fmtW(vMax)}</span>
+            <span class="spark-lbl-min">${this._fmtW(vMin)}</span>
+          </div>` : A}
+      </div>`;
   }
   // ── Render: HDO schedule ───────────────────────────────────────────────────
   _renderHdoSchedule() {
@@ -2416,9 +2412,13 @@ ElectricityPanelCard.styles = i$3`
     .note-icon { --mdc-icon-size: 12px; color: #4b5568; flex-shrink: 0; }
     .note-row .device-name { font-style: italic; }
 
-    .sparkline { width: 100%; height: 38px; display: block; margin-top: 6px; overflow: visible; }
-    .spark-label { fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
-    .spark-label-min { fill: rgba(255,255,255,.45); }
+    .sparkline-wrap { position: relative; width: 100%; height: 38px; display: block; margin-top: 6px; }
+    .sparkline { width: 100%; height: 100%; display: block; overflow: visible; }
+    .spark-lbls { position: absolute; top: 0; bottom: 0; width: 40px; display: flex; flex-direction: column; justify-content: space-between; padding: 2px 2px; pointer-events: none; }
+    .spark-lbls-left { left: 0; align-items: flex-start; }
+    .spark-lbls-right { right: 0; align-items: flex-end; }
+    .spark-lbl-max { font-size: 8px; color: rgba(255,255,255,.75); text-shadow: 0 0 3px #111318, 0 0 3px #111318; white-space: nowrap; font-family: inherit; }
+    .spark-lbl-min { font-size: 8px; color: rgba(255,255,255,.45); text-shadow: 0 0 3px #111318, 0 0 3px #111318; white-space: nowrap; font-family: inherit; }
     .spark-ref { stroke-width: 1px; stroke-dasharray: 3 3; }
     .spark-hidden { display: none; }
     .age-badge { font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -2439,7 +2439,7 @@ ElectricityPanelCard = __decorateClass([
   t("electricity-panel-card")
 ], ElectricityPanelCard);
 window["customCards"] ?? (window["customCards"] = []);
-const _EP_VERSION = "5.0.1";
+const _EP_VERSION = "5.0.3";
 window["customCards"].push({
   type: "electricity-panel-card",
   name: "Electricity Panel Card",

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.0.3] - 2026-06-05
+
+### 🔧 Fixed
+
+- **Sparkline labels — consistent font size on all card widths** — min/max labels
+  are now rendered as HTML elements overlaid on the SVG instead of SVG `<text>`
+  nodes. With `preserveAspectRatio="none"`, Chromium scaled the SVG transform
+  (including stroke-width and font metrics) with the horizontal axis, making
+  labels on wide single-phase cards appear significantly larger than those on
+  narrow 3-phase phase cells. HTML labels are controlled purely by CSS and are
+  immune to SVG transforms — font size is identical on all sparklines regardless
+  of card width.
+
+---
+
 ## [5.0.2] - 2026-06-05
 
 ### 🔧 Fixed

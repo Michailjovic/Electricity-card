@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.0.4] - 2026-06-05
+
+### 🔧 Fixed
+
+- **Sparkline labels overlapping graph** — the graph path now reserves horizontal
+  space for HTML labels the same way the old SVG text approach did. With
+  `sparkline_labels: 'left'` the graph starts at x=40, with `'right'` it ends at
+  x=60, so the label area and graph data never overlap.
+
+---
+
 ## [5.0.3] - 2026-06-05
 
 ### 🔧 Fixed

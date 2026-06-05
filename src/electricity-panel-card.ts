@@ -552,9 +552,13 @@ export class ElectricityPanelCard extends LitElement {
     const vals = data.map(p => p.v);
     const vMin = Math.min(...vals), vMax = Math.max(...vals);
     const vRange = vMax - vMin || 0.01;
-    // Graph fills full SVG width — labels rendered as HTML overlay (immune to SVG X-scaling)
+    // Reserve space for HTML labels so graph data doesn't overlap them
+    const xPad = labelPos === 'none' ? 0 : 40;
+    const xStart = labelPos === 'left' ? xPad : 0;
+    const xEnd   = labelPos === 'right' ? W - xPad : W;
+    const xRange = xEnd - xStart || 1;
     const coords = data.map(p => ({
-      x: ((p.t - tMin) / tRange) * W,
+      x: xStart + ((p.t - tMin) / tRange) * xRange,
       y: (H - pad) - ((p.v - vMin) / vRange) * (H - pad * 2),
     }));
     let linePath = `M ${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
@@ -1189,7 +1193,7 @@ export class ElectricityPanelCard extends LitElement {
 }
 
 (window as unknown as Record<string, unknown>)['customCards'] ??= [];
-const _EP_VERSION = '5.0.3';
+const _EP_VERSION = '5.0.4';
 ((window as unknown as Record<string, unknown[]>)['customCards']).push({
   type: 'electricity-panel-card',
   name: 'Electricity Panel Card',

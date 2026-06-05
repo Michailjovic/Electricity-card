@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Local dev config — contains HA token, never commit
+.env
+
 # Vite build cache
 *.mjs
 .vite/

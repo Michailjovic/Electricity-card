@@ -1845,8 +1845,12 @@ let ElectricityPanelCard = class extends i {
     const vals = data.map((p2) => p2.v);
     const vMin = Math.min(...vals), vMax = Math.max(...vals);
     const vRange = vMax - vMin || 0.01;
+    const xPad = labelPos === "none" ? 0 : 40;
+    const xStart = labelPos === "left" ? xPad : 0;
+    const xEnd = labelPos === "right" ? W - xPad : W;
+    const xRange = xEnd - xStart || 1;
     const coords = data.map((p2) => ({
-      x: (p2.t - tMin) / tRange * W,
+      x: xStart + (p2.t - tMin) / tRange * xRange,
       y: H2 - pad - (p2.v - vMin) / vRange * (H2 - pad * 2)
     }));
     let linePath = `M ${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
@@ -2439,7 +2443,7 @@ ElectricityPanelCard = __decorateClass([
   t("electricity-panel-card")
 ], ElectricityPanelCard);
 window["customCards"] ?? (window["customCards"] = []);
-const _EP_VERSION = "5.0.3";
+const _EP_VERSION = "5.0.4";
 window["customCards"].push({
   type: "electricity-panel-card",
   name: "Electricity Panel Card",

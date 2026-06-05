@@ -545,12 +545,9 @@ export class ElectricityPanelCard extends LitElement {
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, '_')}`;
     const lx = labelPos === 'right' ? String(W - 1) : '1';
     const anchor = labelPos === 'right' ? 'end' : 'start';
-    // Reference lines span the label margin, visually connecting text to graph scale.
-    // x1/x2 are the margin area (between graph edge and SVG edge).
-    const refX1 = labelPos === 'right' ? xEnd : 0;
-    const refX2 = labelPos === 'right' ? W : xStart;
-    const yMax = pad.toFixed(1);          // top of graph = where vMax maps to
-    const yMin = (H - pad).toFixed(1);    // bottom of graph = where vMin maps to
+    // Reference line at the most recent value — spans full SVG width so the
+    // dashed line crosses the entire graph, independent of label visibility.
+    const yRef = coords[coords.length - 1].y.toFixed(1);
     const hideLabels = labelPos === 'none';
     const refColor = this._config.sparkline_ref_color ?? 'rgba(255,255,255,0.35)';
     return html`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="sparkline">
@@ -564,11 +561,8 @@ export class ElectricityPanelCard extends LitElement {
       <path d="${areaPath}" fill="url(#${gid})"/>
       <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
         stroke-linejoin="round" stroke-linecap="round"/>
-      <line x1="${refX1}" y1="${yMax}" x2="${refX2}" y2="${yMax}"
-        class="spark-ref${showRef && !hideLabels ? '' : ' spark-hidden'}"
-        style="stroke:${refColor}"/>
-      <line x1="${refX1}" y1="${yMin}" x2="${refX2}" y2="${yMin}"
-        class="spark-ref${showRef && !hideLabels ? '' : ' spark-hidden'}"
+      <line x1="0" y1="${yRef}" x2="${W}" y2="${yRef}"
+        class="spark-ref${showRef ? '' : ' spark-hidden'}"
         style="stroke:${refColor}"/>
       <text x="${lx}" y="10" text-anchor="${anchor}"
         class="spark-label${hideLabels ? ' spark-hidden' : ''}">${this._fmtW(vMax)}</text>

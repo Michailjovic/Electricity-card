@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.7.0] - 2026-06-05
+
+### Added
+
+- **Age badge — main meter** — the last-updated badge now also appears on the
+  main meter, using the first available phase power entity as the timestamp source.
+
+- **Age badge — GUI controls** — the card editor now exposes full control over
+  the age badge: a global on/off toggle, configurable amber and red thresholds
+  (in minutes, default 5 / 15), and individual colour pickers for all three
+  states (fresh / amber / red).
+
+### Changed
+
+- **Editor: Graph settings section** — the "Sparkline graphs" editor section has
+  been renamed to "Graph settings". The history period field (`graph_hours`) has
+  been moved into this section. Sparkline options and the new age badge controls
+  are grouped within it as subsections.
+
+---
+
 ## [4.6.0] - 2026-06-05
 
 ### Added

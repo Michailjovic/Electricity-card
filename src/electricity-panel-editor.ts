@@ -241,14 +241,19 @@ export class ElectricityPanelEditor extends LitElement {
 
   // ── Section renderers ──────────────────────────────────────────────────────
 
-  private _renderSparklineSection(): TemplateResult {
+  private _renderGraphSection(): TemplateResult {
     const col = this._config.sparkline_color ?? '#ef4444';
     const lbl = this._config.sparkline_labels ?? 'left';
     const ref = this._config.sparkline_ref_line ?? false;
+    const age = this._config.show_age_badge ?? false;
     return html`
       <details class="section">
-        <summary>Sparkline graphs</summary>
+        <summary>Graph settings</summary>
         <div class="section-body">
+          ${this._numField('History period (h, 1–24)', this._config.graph_hours as number | undefined,
+            (v) => this._set(['graph_hours'], Math.max(1, Math.min(24, parseFloat(v) || 3))), '3')}
+
+          <div class="group-label" style="margin-top:10px;">Sparkline graphs</div>
           <div class="field">
             <label>Line colour</label>
             <input type="color" .value=${col}
@@ -265,7 +270,7 @@ export class ElectricityPanelEditor extends LitElement {
           <div class="field checkbox">
             <input type="checkbox" id="spark-ref" .checked=${ref}
               @change=${(e: Event) => this._set(['sparkline_ref_line'], (e.target as HTMLInputElement).checked)} />
-            <label for="spark-ref">Reference line at current value</label>
+            <label for="spark-ref">Show min/max reference lines</label>
           </div>
           ${ref ? html`
             <div class="field">
@@ -273,7 +278,34 @@ export class ElectricityPanelEditor extends LitElement {
               <input type="color" .value=${this._config.sparkline_ref_color ?? '#ffffff'}
                 @input=${(e: Event) => this._set(['sparkline_ref_color'], (e.target as HTMLInputElement).value)} />
               <span class="field-hint">Default: semi-transparent white</span>
-            </div>` : ''}
+            </div>` : nothing}
+
+          <div class="group-label" style="margin-top:10px;">Last-updated badge</div>
+          <div class="field checkbox">
+            <input type="checkbox" id="age-badge" .checked=${age}
+              @change=${(e: Event) => this._set(['show_age_badge'], (e.target as HTMLInputElement).checked)} />
+            <label for="age-badge">Show ↻ age badge on circuits and main meter</label>
+          </div>
+          ${age ? html`
+            ${this._numField('Amber threshold (minutes)', this._config.age_warn_minutes,
+              (v) => this._set(['age_warn_minutes'], parseFloat(v) || 5), '5')}
+            ${this._numField('Red threshold (minutes)', this._config.age_stale_minutes,
+              (v) => this._set(['age_stale_minutes'], parseFloat(v) || 15), '15')}
+            <div class="field">
+              <label>Fresh colour</label>
+              <input type="color" .value=${this._config.age_ok_color ?? '#374151'}
+                @input=${(e: Event) => this._set(['age_ok_color'], (e.target as HTMLInputElement).value)} />
+            </div>
+            <div class="field">
+              <label>Amber colour</label>
+              <input type="color" .value=${this._config.age_warn_color ?? '#f59e0b'}
+                @input=${(e: Event) => this._set(['age_warn_color'], (e.target as HTMLInputElement).value)} />
+            </div>
+            <div class="field">
+              <label>Red colour</label>
+              <input type="color" .value=${this._config.age_stale_color ?? '#ef4444'}
+                @input=${(e: Event) => this._set(['age_stale_color'], (e.target as HTMLInputElement).value)} />
+            </div>` : nothing}
         </div>
       </details>`;
   }
@@ -483,9 +515,7 @@ export class ElectricityPanelEditor extends LitElement {
       <div class="editor">
         ${this._textField('Card title (optional)', this._config.title,
           (v) => this._set(['title'], v), 'Electricity panel')}
-        ${this._numField('History graph period (h, 1–24)', this._config.graph_hours as number | undefined,
-          (v) => this._set(['graph_hours'], Math.max(1, Math.min(24, parseFloat(v) || 3))), '3')}
-        ${this._renderSparklineSection()}
+        ${this._renderGraphSection()}
         ${this._renderMeterSection()}
         ${this._renderHdoSection()}
         <div class="sec-hdr">Circuits</div>
@@ -581,21 +611,12 @@ export class ElectricityPanelEditor extends LitElement {
 
     .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .badge.info { background: rgba(33,150,243,0.12); color: var(--primary-color, #2196f3); }
-      .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
+    .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
 
-    .device-type-icon {
-      --mdc-icon-size: 15px;
-      color: var(--disabled-text-color);
-      flex-shrink: 0;
-    }
+    .device-type-icon { --mdc-icon-size: 15px; color: var(--disabled-text-color); flex-shrink: 0; }
     .drag-handle {
-      color: var(--disabled-text-color);
-      cursor: grab;
-      flex-shrink: 0;
-      font-size: 16px;
-      line-height: 1;
-      padding: 0 2px;
-      user-select: none;
+      color: var(--disabled-text-color); cursor: grab; flex-shrink: 0;
+      font-size: 16px; line-height: 1; padding: 0 2px; user-select: none;
     }
     .drag-handle:active { cursor: grabbing; }
     .row-hdr.drag-over {

@@ -240,8 +240,9 @@ export class ElectricityPanelCard extends LitElement {
   // ── Age badge ─────────────────────────────────────────────────────────────
 
   /** Returns "↻ Xs / Xm / Xh" badge showing time since entity was last updated.
-   *  Colour: muted < 5 min · amber 5–15 min · red > 15 min */
+   *  Hidden when show_age_badge is false/unset. Thresholds and colours configurable. */
   private _ageBadge(entityId?: string): TemplateResult | typeof nothing {
+    if (!this._config.show_age_badge) return nothing;
     if (!entityId) return nothing;
     const entity = this.hass?.states[entityId];
     if (!entity?.last_updated) return nothing;
@@ -251,8 +252,14 @@ export class ElectricityPanelCard extends LitElement {
     if (diffS < 60) label = `${diffS}s`;
     else if (diffS < 3600) label = `${Math.floor(diffS / 60)}m`;
     else label = `${Math.floor(diffS / 3600)}h`;
-    const cls = diffMs > 900_000 ? 'age-stale' : diffMs > 300_000 ? 'age-warn' : 'age-ok';
-    return html`<span class="metric-sep">·</span><span class="age-badge ${cls}">↻ ${label}</span>`;
+    const warnMs  = (this._config.age_warn_minutes  ?? 5)  * 60_000;
+    const staleMs = (this._config.age_stale_minutes ?? 15) * 60_000;
+    const color = diffMs >= staleMs
+      ? (this._config.age_stale_color ?? '#ef4444')
+      : diffMs >= warnMs
+        ? (this._config.age_warn_color ?? '#f59e0b')
+        : (this._config.age_ok_color ?? '#374151');
+    return html`<span class="metric-sep">·</span><span class="age-badge" style="color:${color}">↻ ${label}</span>`;
   }
 
   // ── Full-day schedule builder ──────────────────────────────────────────────
@@ -713,6 +720,7 @@ export class ElectricityPanelCard extends LitElement {
             <span class="metric-small">
               ${m.energy_today ? html`${this._kwh(m.energy_today).toFixed(1)} kWh today` : nothing}
               ${(() => { const cr = this._calcDailyCost(m.power_l1, m.power_l2, m.power_l3); return cr ? html`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : nothing; })()}
+              ${this._ageBadge(m.power_l1 ?? m.power_l2 ?? m.power_l3 ?? m.energy_today)}
             </span>
           </div>
         </div>
@@ -1116,61 +1124,6 @@ export class ElectricityPanelCard extends LitElement {
     .metric-sep { opacity: .4; margin: 0 1px; }
     .cost-rate { color: #f59e0b; font-weight: 500; }
     .age-badge { font-size: 10px; font-variant-numeric: tabular-nums; }
-    .age-ok    { color: #374151; }
-    .age-warn  { color: #f59e0b; }
-    .age-stale { color: #ef4444; }
-
-    .badge { font-size: 9px; padding: 2px 5px; border-radius: 4px; font-weight: 500; flex-shrink: 0; letter-spacing: .3px; }
-    .badge-info  { background: #1e2a4a; color: #6b9bdb; }
-    .badge-phase { background: #1e2a4a; color: #6b9bdb; }
-
-    .toggle { width: 32px; height: 18px; border-radius: 9px; border: none; cursor: pointer; position: relative; flex-shrink: 0; transition: background .2s; }
-    .toggle::after { content: ''; position: absolute; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); transition: left .2s; }
-    .toggle.on  { background: #16a34a; }
-    .toggle.on::after  { left: 17px; }
-    .toggle.off { background: #374151; }
-    .toggle.off::after { left: 3px; }
-    .toggle.sm  { width: 28px; height: 16px; border-radius: 8px; }
-    .toggle.sm::after { width: 10px; height: 10px; top: 3px; }
-    .toggle.sm.on::after  { left: 15px; }
-    .toggle.sm.off::after { left: 3px; }
-
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: box-shadow .3s; }
-    .status-dot.on  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.2); }
-    .status-dot.off { background: #374151; }
-    .status-dot.none { background: transparent; border: 1px solid #374151; }
-    .status-dot.sm  { width: 6px; height: 6px; }
-
-    .expand-btn { display: flex; align-items: center; gap: 4px; background: #111318; border: 0.5px solid #252a35; border-radius: 5px; cursor: pointer; color: #4b5568; padding: 2px 6px; flex-shrink: 0; }
-    .expand-btn ha-icon { --mdc-icon-size: 14px; }
-    .expand-btn span { font-size: 10px; }
-
-    .tp-devices-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
-    .devices-list { display: flex; flex-direction: column; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
-    .tp-device-col { min-width: 0; }
-    .tp-device-col .device-group-label { padding-left: 0; }
-    .tp-device-col .device-row { padding-left: 0; }
-    .device-group { margin-bottom: 6px; }
-    .device-group-label { display: flex; justify-content: space-between; align-items: center; font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: #4b5568; margin-bottom: 4px; padding-left: 14px; }
-    .ch-sum { font-size: 10px; font-weight: 500; color: #6b7db3; letter-spacing: 0; text-transform: none; }
-    .device-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 0.5px solid #1f2937; }
-    .device-row:last-child { border-bottom: none; }
-    .device-row.channel { padding-left: 8px; }
-    .device-name { flex: 1; font-size: 12px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .device-metrics { font-size: 11px; color: #4b5568; white-space: nowrap; flex-shrink: 0; }
-    .note-row { opacity: .6; }
-    .note-icon { --mdc-icon-size: 12px; color: #4b5568; flex-shrink: 0; }
-    .note-row .device-name { font-style: italic; }
-
-    .sparkline { width: 100%; height: 38px; display: block; margin-top: 6px; overflow: visible; }
-    .spark-label { font-size: 8px; fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
-    .spark-label-min { fill: rgba(255,255,255,.45); }
-    .spark-ref { stroke-width: 1px; stroke-dasharray: 3 3; }
-    .spark-hidden { display: none; }
-    .age-badge { font-size: 10px; font-variant-numeric: tabular-nums; }
-    .age-ok    { color: #374151; }
-    .age-warn  { color: #f59e0b; }
-    .age-stale { color: #ef4444; }
   `;
 }
 

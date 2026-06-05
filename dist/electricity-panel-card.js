@@ -868,14 +868,23 @@ let ElectricityPanelEditor = class extends i {
       </div>`;
   }
   // ── Section renderers ──────────────────────────────────────────────────────
-  _renderSparklineSection() {
+  _renderGraphSection() {
     const col = this._config.sparkline_color ?? "#ef4444";
     const lbl = this._config.sparkline_labels ?? "left";
     const ref = this._config.sparkline_ref_line ?? false;
+    const age = this._config.show_age_badge ?? false;
     return b`
       <details class="section">
-        <summary>Sparkline graphs</summary>
+        <summary>Graph settings</summary>
         <div class="section-body">
+          ${this._numField(
+      "History period (h, 1–24)",
+      this._config.graph_hours,
+      (v2) => this._set(["graph_hours"], Math.max(1, Math.min(24, parseFloat(v2) || 3))),
+      "3"
+    )}
+
+          <div class="group-label" style="margin-top:10px;">Sparkline graphs</div>
           <div class="field">
             <label>Line colour</label>
             <input type="color" .value=${col}
@@ -892,7 +901,7 @@ let ElectricityPanelEditor = class extends i {
           <div class="field checkbox">
             <input type="checkbox" id="spark-ref" .checked=${ref}
               @change=${(e2) => this._set(["sparkline_ref_line"], e2.target.checked)} />
-            <label for="spark-ref">Reference line at current value</label>
+            <label for="spark-ref">Show min/max reference lines</label>
           </div>
           ${ref ? b`
             <div class="field">
@@ -900,7 +909,42 @@ let ElectricityPanelEditor = class extends i {
               <input type="color" .value=${this._config.sparkline_ref_color ?? "#ffffff"}
                 @input=${(e2) => this._set(["sparkline_ref_color"], e2.target.value)} />
               <span class="field-hint">Default: semi-transparent white</span>
-            </div>` : ""}
+            </div>` : A}
+
+          <div class="group-label" style="margin-top:10px;">Last-updated badge</div>
+          <div class="field checkbox">
+            <input type="checkbox" id="age-badge" .checked=${age}
+              @change=${(e2) => this._set(["show_age_badge"], e2.target.checked)} />
+            <label for="age-badge">Show ↻ age badge on circuits and main meter</label>
+          </div>
+          ${age ? b`
+            ${this._numField(
+      "Amber threshold (minutes)",
+      this._config.age_warn_minutes,
+      (v2) => this._set(["age_warn_minutes"], parseFloat(v2) || 5),
+      "5"
+    )}
+            ${this._numField(
+      "Red threshold (minutes)",
+      this._config.age_stale_minutes,
+      (v2) => this._set(["age_stale_minutes"], parseFloat(v2) || 15),
+      "15"
+    )}
+            <div class="field">
+              <label>Fresh colour</label>
+              <input type="color" .value=${this._config.age_ok_color ?? "#374151"}
+                @input=${(e2) => this._set(["age_ok_color"], e2.target.value)} />
+            </div>
+            <div class="field">
+              <label>Amber colour</label>
+              <input type="color" .value=${this._config.age_warn_color ?? "#f59e0b"}
+                @input=${(e2) => this._set(["age_warn_color"], e2.target.value)} />
+            </div>
+            <div class="field">
+              <label>Red colour</label>
+              <input type="color" .value=${this._config.age_stale_color ?? "#ef4444"}
+                @input=${(e2) => this._set(["age_stale_color"], e2.target.value)} />
+            </div>` : A}
         </div>
       </details>`;
   }
@@ -1133,13 +1177,7 @@ let ElectricityPanelEditor = class extends i {
       (v2) => this._set(["title"], v2),
       "Electricity panel"
     )}
-        ${this._numField(
-      "History graph period (h, 1–24)",
-      this._config.graph_hours,
-      (v2) => this._set(["graph_hours"], Math.max(1, Math.min(24, parseFloat(v2) || 3))),
-      "3"
-    )}
-        ${this._renderSparklineSection()}
+        ${this._renderGraphSection()}
         ${this._renderMeterSection()}
         ${this._renderHdoSection()}
         <div class="sec-hdr">Circuits</div>
@@ -1235,21 +1273,12 @@ ElectricityPanelEditor.styles = i$3`
 
     .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
     .badge.info { background: rgba(33,150,243,0.12); color: var(--primary-color, #2196f3); }
-      .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
+    .badge.warn { background: rgba(245,124,0,0.12); color: var(--warning-color, #f57c00); }
 
-    .device-type-icon {
-      --mdc-icon-size: 15px;
-      color: var(--disabled-text-color);
-      flex-shrink: 0;
-    }
+    .device-type-icon { --mdc-icon-size: 15px; color: var(--disabled-text-color); flex-shrink: 0; }
     .drag-handle {
-      color: var(--disabled-text-color);
-      cursor: grab;
-      flex-shrink: 0;
-      font-size: 16px;
-      line-height: 1;
-      padding: 0 2px;
-      user-select: none;
+      color: var(--disabled-text-color); cursor: grab; flex-shrink: 0;
+      font-size: 16px; line-height: 1; padding: 0 2px; user-select: none;
     }
     .drag-handle:active { cursor: grabbing; }
     .row-hdr.drag-over {
@@ -1501,9 +1530,10 @@ let ElectricityPanelCard = class extends i {
   }
   // ── Age badge ─────────────────────────────────────────────────────────────
   /** Returns "↻ Xs / Xm / Xh" badge showing time since entity was last updated.
-   *  Colour: muted < 5 min · amber 5–15 min · red > 15 min */
+   *  Hidden when show_age_badge is false/unset. Thresholds and colours configurable. */
   _ageBadge(entityId) {
     var _a2;
+    if (!this._config.show_age_badge) return A;
     if (!entityId) return A;
     const entity = (_a2 = this.hass) == null ? void 0 : _a2.states[entityId];
     if (!(entity == null ? void 0 : entity.last_updated)) return A;
@@ -1513,8 +1543,10 @@ let ElectricityPanelCard = class extends i {
     if (diffS < 60) label = `${diffS}s`;
     else if (diffS < 3600) label = `${Math.floor(diffS / 60)}m`;
     else label = `${Math.floor(diffS / 3600)}h`;
-    const cls = diffMs > 9e5 ? "age-stale" : diffMs > 3e5 ? "age-warn" : "age-ok";
-    return b`<span class="metric-sep">·</span><span class="age-badge ${cls}">↻ ${label}</span>`;
+    const warnMs = (this._config.age_warn_minutes ?? 5) * 6e4;
+    const staleMs = (this._config.age_stale_minutes ?? 15) * 6e4;
+    const color = diffMs >= staleMs ? this._config.age_stale_color ?? "#ef4444" : diffMs >= warnMs ? this._config.age_warn_color ?? "#f59e0b" : this._config.age_ok_color ?? "#374151";
+    return b`<span class="metric-sep">·</span><span class="age-badge" style="color:${color}">↻ ${label}</span>`;
   }
   // ── Full-day schedule builder ──────────────────────────────────────────────
   _buildFullDaySlots(starts, offsets, base, showing) {
@@ -1931,6 +1963,7 @@ let ElectricityPanelCard = class extends i {
       const cr = this._calcDailyCost(m2.power_l1, m2.power_l2, m2.power_l3);
       return cr ? b`<span class="metric-sep">·</span><span class="cost-rate">${cr}</span>` : A;
     })()}
+              ${this._ageBadge(m2.power_l1 ?? m2.power_l2 ?? m2.power_l3 ?? m2.energy_today)}
             </span>
           </div>
         </div>
@@ -2285,61 +2318,6 @@ ElectricityPanelCard.styles = i$3`
     .metric-sep { opacity: .4; margin: 0 1px; }
     .cost-rate { color: #f59e0b; font-weight: 500; }
     .age-badge { font-size: 10px; font-variant-numeric: tabular-nums; }
-    .age-ok    { color: #374151; }
-    .age-warn  { color: #f59e0b; }
-    .age-stale { color: #ef4444; }
-
-    .badge { font-size: 9px; padding: 2px 5px; border-radius: 4px; font-weight: 500; flex-shrink: 0; letter-spacing: .3px; }
-    .badge-info  { background: #1e2a4a; color: #6b9bdb; }
-    .badge-phase { background: #1e2a4a; color: #6b9bdb; }
-
-    .toggle { width: 32px; height: 18px; border-radius: 9px; border: none; cursor: pointer; position: relative; flex-shrink: 0; transition: background .2s; }
-    .toggle::after { content: ''; position: absolute; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); transition: left .2s; }
-    .toggle.on  { background: #16a34a; }
-    .toggle.on::after  { left: 17px; }
-    .toggle.off { background: #374151; }
-    .toggle.off::after { left: 3px; }
-    .toggle.sm  { width: 28px; height: 16px; border-radius: 8px; }
-    .toggle.sm::after { width: 10px; height: 10px; top: 3px; }
-    .toggle.sm.on::after  { left: 15px; }
-    .toggle.sm.off::after { left: 3px; }
-
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: box-shadow .3s; }
-    .status-dot.on  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.2); }
-    .status-dot.off { background: #374151; }
-    .status-dot.none { background: transparent; border: 1px solid #374151; }
-    .status-dot.sm  { width: 6px; height: 6px; }
-
-    .expand-btn { display: flex; align-items: center; gap: 4px; background: #111318; border: 0.5px solid #252a35; border-radius: 5px; cursor: pointer; color: #4b5568; padding: 2px 6px; flex-shrink: 0; }
-    .expand-btn ha-icon { --mdc-icon-size: 14px; }
-    .expand-btn span { font-size: 10px; }
-
-    .tp-devices-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
-    .devices-list { display: flex; flex-direction: column; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid #252a35; }
-    .tp-device-col { min-width: 0; }
-    .tp-device-col .device-group-label { padding-left: 0; }
-    .tp-device-col .device-row { padding-left: 0; }
-    .device-group { margin-bottom: 6px; }
-    .device-group-label { display: flex; justify-content: space-between; align-items: center; font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: #4b5568; margin-bottom: 4px; padding-left: 14px; }
-    .ch-sum { font-size: 10px; font-weight: 500; color: #6b7db3; letter-spacing: 0; text-transform: none; }
-    .device-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 0.5px solid #1f2937; }
-    .device-row:last-child { border-bottom: none; }
-    .device-row.channel { padding-left: 8px; }
-    .device-name { flex: 1; font-size: 12px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .device-metrics { font-size: 11px; color: #4b5568; white-space: nowrap; flex-shrink: 0; }
-    .note-row { opacity: .6; }
-    .note-icon { --mdc-icon-size: 12px; color: #4b5568; flex-shrink: 0; }
-    .note-row .device-name { font-style: italic; }
-
-    .sparkline { width: 100%; height: 38px; display: block; margin-top: 6px; overflow: visible; }
-    .spark-label { font-size: 8px; fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
-    .spark-label-min { fill: rgba(255,255,255,.45); }
-    .spark-ref { stroke-width: 1px; stroke-dasharray: 3 3; }
-    .spark-hidden { display: none; }
-    .age-badge { font-size: 10px; font-variant-numeric: tabular-nums; }
-    .age-ok    { color: #374151; }
-    .age-warn  { color: #f59e0b; }
-    .age-stale { color: #ef4444; }
   `;
 __decorateClass([
   r()

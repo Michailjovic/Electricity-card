@@ -2443,7 +2443,7 @@ ElectricityPanelCard = __decorateClass([
   t("electricity-panel-card")
 ], ElectricityPanelCard);
 window["customCards"] ?? (window["customCards"] = []);
-const _EP_VERSION = "5.0.5";
+const _EP_VERSION = "5.0.6";
 window["customCards"].push({
   type: "electricity-panel-card",
   name: "Electricity Panel Card",

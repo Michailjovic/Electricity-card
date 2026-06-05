@@ -1196,15 +1196,11 @@ export class ElectricityPanelCard extends LitElement {
 }
 
 (window as unknown as Record<string, unknown>)['customCards'] ??= [];
-const _EP_VERSION = '5.0.5';
+const _EP_VERSION = '5.0.6';
 ((window as unknown as Record<string, unknown[]>)['customCards']).push({
   type: 'electricity-panel-card',
   name: 'Electricity Panel Card',
   description: `Circuit breaker panel — power, current, daily energy, HDO tariff (v${_EP_VERSION})`,
-  preview: false,
-});
-console.info(`%c electricity-panel-card %c v${_EP_VERSION} `, 'background:#22c55e;color:#fff;font-weight:bold', 'background:#1f2937;color:#22c55e');
-: `Circuit breaker panel — power, current, daily energy, HDO tariff (v${_EP_VERSION})`,
   preview: false,
 });
 console.info(`%c electricity-panel-card %c v${_EP_VERSION} `, 'background:#22c55e;color:#fff;font-weight:bold', 'background:#1f2937;color:#22c55e');

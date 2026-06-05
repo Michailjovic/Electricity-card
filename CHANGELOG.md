@@ -5,6 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) · Versioning: 
 
 ---
 
+## [5.0.6] — 2026-06-05
+*Hotfix: corrects a file corruption in v5.0.5 that caused the GitHub Actions build to fail.*
+
+### 🐛 Fixed
+
+- **Build failure in v5.0.5** — a stale staged version of `electricity-panel-card.ts`
+  was committed, containing a duplicate orphaned line introduced during a previous
+  repair attempt. The source file and built `dist/` are now correct.
+
+---
+
 ## [5.0.5] — 2026-06-05
 *Sparkline labels no longer overlap the graph on wide cards; new `npm run bump` for post-HACS cache-busting.*
 

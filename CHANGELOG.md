@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.9.0] - 2026-06-05
+
+### Added
+
+- **Per-phase voltage on 3-phase circuits** — `voltage_l1`, `voltage_l2`,
+  `voltage_l3` entity fields added to circuit configuration. When set, each
+  phase cell in a 3-phase circuit card shows voltage below the current value.
+  Configurable via the GUI editor under each circuit's per-phase entity section.
+
+- **Single-phase circuit sparkline** — circuit cards can now show a power history
+  graph (Variant A: full-width, below the metrics row). Enable per-card-type in
+  the editor: Graph settings → Sparkline visibility → "Single-phase circuit graph".
+  Disabled by default to keep compact card layout.
+
+- **Sparkline visibility toggles** — three independent checkboxes in Graph settings
+  control which sparklines are shown: main meter phase cells, 3-phase circuit phase
+  cells, and single-phase circuit cards. All default to their previous behaviour
+  (main meter and 3-phase on, single-phase off).
+
+### Fixed
+
+- **HDO questions**: users who use the HDO Czech HACS integration for real-time
+  tariff data do not need a `tariff_preset` or manual schedule configured — the
+  HDO bar (NT/VT status + countdown) works from the switch entity alone. The daily
+  schedule timeline requires either `tariff_preset` or a manual `schedule` block.
+
+---
+
 ## [4.8.0] - 2026-06-05
 
 ### Added

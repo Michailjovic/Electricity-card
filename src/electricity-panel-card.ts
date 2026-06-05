@@ -95,7 +95,8 @@ export class ElectricityPanelCard extends LitElement {
                      mm.current_l1, mm.current_l2, mm.current_l3, mm.energy_today);
     for (const c of this._config.circuits ?? []) {
       ids.push(c.switch, c.power, c.current, c.energy, c.voltage,
-               c.power_l1, c.power_l2, c.power_l3, c.current_l1, c.current_l2, c.current_l3);
+               c.power_l1, c.power_l2, c.power_l3, c.current_l1, c.current_l2, c.current_l3,
+               c.voltage_l1, c.voltage_l2, c.voltage_l3);
       for (const d of c.devices ?? []) {
         ids.push(d.switch, d.power, d.current);
         for (const ch of d.channels ?? []) ids.push(ch.switch, ch.power, ch.current);
@@ -732,7 +733,7 @@ export class ElectricityPanelCard extends LitElement {
               <div class="phase-label">${p.label}</div>
               <div class="phase-power">${(this._watts(p.power) / 1000).toFixed(2)} kW</div>
               <div class="phase-detail">${this._num(p.current).toFixed(1)} A</div>
-              ${this._renderSparkline(p.power)}
+              ${this._config.sparkline_main_meter !== false ? this._renderSparkline(p.power) : nothing}
             </div>
           `)}
         </div>
@@ -799,6 +800,7 @@ export class ElectricityPanelCard extends LitElement {
         ${expanded && hasDevices
           ? html`<div class="devices-list">${c.devices!.map(d => this._renderDevice(d))}</div>`
           : nothing}
+        ${this._config.sparkline_1phase ? this._renderSparkline(c.power) : nothing}
       </div>
     `;
   }
@@ -891,9 +893,9 @@ export class ElectricityPanelCard extends LitElement {
     const energy = this._kwh(c.energy);
     const maxA = c.max_current ?? 63;
     const phases = [
-      { label: 'L1', power: c.power_l1, current: c.current_l1 },
-      { label: 'L2', power: c.power_l2, current: c.current_l2 },
-      { label: 'L3', power: c.power_l3, current: c.current_l3 },
+      { label: 'L1', power: c.power_l1, current: c.current_l1, voltage: c.voltage_l1 },
+      { label: 'L2', power: c.power_l2, current: c.current_l2, voltage: c.voltage_l2 },
+      { label: 'L3', power: c.power_l3, current: c.current_l3, voltage: c.voltage_l3 },
     ];
     // Total current for load bar: use dedicated entity if set, otherwise max of phases
     const totalCurrent = c.current
@@ -942,8 +944,11 @@ export class ElectricityPanelCard extends LitElement {
             <div class="phase-cell">
               <div class="phase-label">${p.label}</div>
               <div class="phase-power">${(this._watts(p.power) / 1000).toFixed(2)} kW</div>
-              <div class="phase-detail">${this._num(p.current).toFixed(1)} A</div>
-              ${this._renderSparkline(p.power)}
+              <div class="phase-detail">
+                ${this._num(p.current).toFixed(1)} A
+                ${p.voltage ? html`<span class="metric-sep">·</span>${this._num(p.voltage).toFixed(0)} V` : nothing}
+              </div>
+              ${this._config.sparkline_3phase !== false ? this._renderSparkline(p.power) : nothing}
             </div>
           `)}
         </div>

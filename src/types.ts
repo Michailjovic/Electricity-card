@@ -64,6 +64,10 @@ export interface Circuit {
   current_l1?: string; // entity_id — A phase 1
   current_l2?: string;
   current_l3?: string;
+  // ── Per-phase voltage (3-phase circuits only) ──
+  voltage_l1?: string; // entity_id — V phase 1
+  voltage_l2?: string;
+  voltage_l3?: string;
   /** Devices wired behind this breaker */
   devices?: CircuitDevice[];
 }
@@ -130,21 +134,4 @@ export interface ElectricityPanelConfig {
   sparkline_color?: string;
   /** Where min/max labels appear: left (start of period) | right (current end) | none */
   sparkline_labels?: 'left' | 'right' | 'none';
-  /** Draw a horizontal dashed reference line at the most recent value */
-  sparkline_ref_line?: boolean;
-  /** Colour of the reference line (default: rgba(255,255,255,0.35)) */
-  sparkline_ref_color?: string;
-  // ── Age badge ──
-  /** Show "↻ Xs/Xm/Xh" last-updated badge on circuit cards and main meter */
-  show_age_badge?: boolean;
-  /** Minutes until badge turns amber (default: 5) */
-  age_warn_minutes?: number;
-  /** Minutes until badge turns red (default: 15) */
-  age_stale_minutes?: number;
-  /** Badge colour when data is fresh (default: #374151) */
-  age_ok_color?: string;
-  /** Badge colour when data is stale (default: #f59e0b) */
-  age_warn_color?: string;
-  /** Badge colour when data is very stale (default: #ef4444) */
-  age_stale_color?: string;
-}
+  /** Draw a horizontal dashed reference line at the most recent va

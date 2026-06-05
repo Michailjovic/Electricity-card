@@ -283,6 +283,23 @@ export class ElectricityPanelEditor extends LitElement {
               <span class="field-hint">Default: semi-transparent white</span>
             </div>` : nothing}
 
+          <div class="group-label" style="margin-top:10px;">Sparkline visibility</div>
+          <div class="field checkbox">
+            <input type="checkbox" id="spark-mm" .checked=${this._config.sparkline_main_meter !== false}
+              @change=${(e: Event) => this._set(['sparkline_main_meter'], (e.target as HTMLInputElement).checked)} />
+            <label for="spark-mm">Main meter phase graphs</label>
+          </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="spark-3f" .checked=${this._config.sparkline_3phase !== false}
+              @change=${(e: Event) => this._set(['sparkline_3phase'], (e.target as HTMLInputElement).checked)} />
+            <label for="spark-3f">3-phase circuit phase graphs</label>
+          </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="spark-1f" .checked=${this._config.sparkline_1phase ?? false}
+              @change=${(e: Event) => this._set(['sparkline_1phase'], (e.target as HTMLInputElement).checked)} />
+            <label for="spark-1f">Single-phase circuit graph (below card)</label>
+          </div>
+
           <div class="group-label" style="margin-top:10px;">Last-updated badge</div>
           <div class="field checkbox">
             <input type="checkbox" id="age-badge" .checked=${age}
@@ -500,6 +517,10 @@ export class ElectricityPanelEditor extends LitElement {
               ${this._entityField('L1 current (A)', c.current_l1, sf('current_l1'))}
               ${this._entityField('L2 current (A)', c.current_l2, sf('current_l2'))}
               ${this._entityField('L3 current (A)', c.current_l3, sf('current_l3'))}
+              <div class="group-label" style="margin-top:10px;">Per-phase voltage (V)</div>
+              ${this._entityField('L1 voltage (V)', c.voltage_l1, sf('voltage_l1'))}
+              ${this._entityField('L2 voltage (V)', c.voltage_l2, sf('voltage_l2'))}
+              ${this._entityField('L3 voltage (V)', c.voltage_l3, sf('voltage_l3'))}
             ` : nothing}
             <div class="group-label" style="margin-top:10px;">Devices behind this breaker</div>
             ${(c.devices ?? []).map((d, di) => this._renderDeviceRow(idx, d, di))}

@@ -914,6 +914,23 @@ let ElectricityPanelEditor = class extends i {
               <span class="field-hint">Default: semi-transparent white</span>
             </div>` : A}
 
+          <div class="group-label" style="margin-top:10px;">Sparkline visibility</div>
+          <div class="field checkbox">
+            <input type="checkbox" id="spark-mm" .checked=${this._config.sparkline_main_meter !== false}
+              @change=${(e2) => this._set(["sparkline_main_meter"], e2.target.checked)} />
+            <label for="spark-mm">Main meter phase graphs</label>
+          </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="spark-3f" .checked=${this._config.sparkline_3phase !== false}
+              @change=${(e2) => this._set(["sparkline_3phase"], e2.target.checked)} />
+            <label for="spark-3f">3-phase circuit phase graphs</label>
+          </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="spark-1f" .checked=${this._config.sparkline_1phase ?? false}
+              @change=${(e2) => this._set(["sparkline_1phase"], e2.target.checked)} />
+            <label for="spark-1f">Single-phase circuit graph (below card)</label>
+          </div>
+
           <div class="group-label" style="margin-top:10px;">Last-updated badge</div>
           <div class="field checkbox">
             <input type="checkbox" id="age-badge" .checked=${age}
@@ -1160,6 +1177,10 @@ let ElectricityPanelEditor = class extends i {
               ${this._entityField("L1 current (A)", c2.current_l1, sf("current_l1"))}
               ${this._entityField("L2 current (A)", c2.current_l2, sf("current_l2"))}
               ${this._entityField("L3 current (A)", c2.current_l3, sf("current_l3"))}
+              <div class="group-label" style="margin-top:10px;">Per-phase voltage (V)</div>
+              ${this._entityField("L1 voltage (V)", c2.voltage_l1, sf("voltage_l1"))}
+              ${this._entityField("L2 voltage (V)", c2.voltage_l2, sf("voltage_l2"))}
+              ${this._entityField("L3 voltage (V)", c2.voltage_l3, sf("voltage_l3"))}
             ` : A}
             <div class="group-label" style="margin-top:10px;">Devices behind this breaker</div>
             ${(c2.devices ?? []).map((d2, di) => this._renderDeviceRow(idx, d2, di))}
@@ -1409,7 +1430,10 @@ let ElectricityPanelCard = class extends i {
         c2.power_l3,
         c2.current_l1,
         c2.current_l2,
-        c2.current_l3
+        c2.current_l3,
+        c2.voltage_l1,
+        c2.voltage_l2,
+        c2.voltage_l3
       );
       for (const d2 of c2.devices ?? []) {
         ids.push(d2.switch, d2.power, d2.current);
@@ -1984,7 +2008,7 @@ let ElectricityPanelCard = class extends i {
               <div class="phase-label">${p2.label}</div>
               <div class="phase-power">${(this._watts(p2.power) / 1e3).toFixed(2)} kW</div>
               <div class="phase-detail">${this._num(p2.current).toFixed(1)} A</div>
-              ${this._renderSparkline(p2.power)}
+              ${this._config.sparkline_main_meter !== false ? this._renderSparkline(p2.power) : A}
             </div>
           `)}
         </div>
@@ -2039,6 +2063,7 @@ let ElectricityPanelCard = class extends i {
         </div>
 
         ${expanded && hasDevices ? b`<div class="devices-list">${c2.devices.map((d2) => this._renderDevice(d2))}</div>` : A}
+        ${this._config.sparkline_1phase ? this._renderSparkline(c2.power) : A}
       </div>
     `;
   }
@@ -2116,9 +2141,9 @@ let ElectricityPanelCard = class extends i {
     const energy = this._kwh(c2.energy);
     const maxA = c2.max_current ?? 63;
     const phases = [
-      { label: "L1", power: c2.power_l1, current: c2.current_l1 },
-      { label: "L2", power: c2.power_l2, current: c2.current_l2 },
-      { label: "L3", power: c2.power_l3, current: c2.current_l3 }
+      { label: "L1", power: c2.power_l1, current: c2.current_l1, voltage: c2.voltage_l1 },
+      { label: "L2", power: c2.power_l2, current: c2.current_l2, voltage: c2.voltage_l2 },
+      { label: "L3", power: c2.power_l3, current: c2.current_l3, voltage: c2.voltage_l3 }
     ];
     const totalCurrent = c2.current ? this._num(c2.current) : Math.max(this._num(c2.current_l1), this._num(c2.current_l2), this._num(c2.current_l3));
     const loadPct = Math.min(100, totalCurrent > 0 ? totalCurrent / maxA * 100 : totalPower / (maxA * 400) * 100);
@@ -2157,8 +2182,11 @@ let ElectricityPanelCard = class extends i {
             <div class="phase-cell">
               <div class="phase-label">${p2.label}</div>
               <div class="phase-power">${(this._watts(p2.power) / 1e3).toFixed(2)} kW</div>
-              <div class="phase-detail">${this._num(p2.current).toFixed(1)} A</div>
-              ${this._renderSparkline(p2.power)}
+              <div class="phase-detail">
+                ${this._num(p2.current).toFixed(1)} A
+                ${p2.voltage ? b`<span class="metric-sep">·</span>${this._num(p2.voltage).toFixed(0)} V` : A}
+              </div>
+              ${this._config.sparkline_3phase !== false ? this._renderSparkline(p2.power) : A}
             </div>
           `)}
         </div>

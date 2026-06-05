@@ -1,3 +1,5 @@
+export const EP_VERSION = '5.0.7';
+
 // ── Home Assistant types ────────────────────────────────────────────────────
 
 export interface HassEntity {
@@ -137,4 +139,26 @@ export interface ElectricityPanelConfig {
   sparkline_color?: string;
   /** Where min/max labels appear: left (start of period) | right (current end) | none */
   sparkline_labels?: 'left' | 'right' | 'none';
-  /** Draw a horizontal dashed reference line at the most recent va
+  /** Draw a horizontal dashed reference line at the min and max values */
+  sparkline_ref_line?: boolean;
+  /** Colour of the dashed reference lines — CSS colour string */
+  sparkline_ref_color?: string;
+  /** Show sparkline on main meter phase cells (default: true) */
+  sparkline_main_meter?: boolean;
+  /** Show sparkline on 3-phase circuit phase cells (default: true) */
+  sparkline_3phase?: boolean;
+  /** Show sparkline on single-phase circuit cards (default: false) */
+  sparkline_1phase?: boolean;
+  /** Show last-updated age badge on all circuits and main meter */
+  show_age_badge?: boolean;
+  /** Minutes since last update before badge turns amber (default: 5) */
+  age_warn_minutes?: number;
+  /** Minutes since last update before badge turns red (default: 15) */
+  age_stale_minutes?: number;
+  /** Badge colour when data is fresh */
+  age_ok_color?: string;
+  /** Badge colour at warn threshold */
+  age_warn_color?: string;
+  /** Badge colour at stale threshold */
+  age_stale_color?: string;
+}

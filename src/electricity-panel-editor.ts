@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { PRE_TARIFFS } from './tariff-presets.js';
+import { EP_VERSION } from './types.js';
 import type {
   HomeAssistant,
   ElectricityPanelConfig,
@@ -553,6 +554,7 @@ export class ElectricityPanelEditor extends LitElement {
         <button class="btn-add primary" @click=${() => this._addCircuit()}>
           <ha-icon icon="mdi:plus-circle-outline"></ha-icon> Add circuit
         </button>
+        <div class="ep-ver">electricity-panel-card v${EP_VERSION}</div>
       </div>`;
   }
 
@@ -671,5 +673,6 @@ display: flex; align-items: center; gap: 6px;
     .btn-add:hover { background: var(--secondary-background-color); }
     .btn-add.primary { border-color: var(--primary-color, #2196f3); color: var(--primary-color, #2196f3); margin-top: 8px; }
     .btn-add ha-icon { --mdc-icon-size: 18px; }
+    .ep-ver { font-size: 10px; color: var(--disabled-text-color); text-align: center; padding: 8px 0 2px; opacity: 0.6; }
   `;
 }

@@ -5,6 +5,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) · Versioning: 
 
 ---
 
+## [5.0.7] — 2026-06-05
+*Sparkline labels correctly overlaid on graph; version badge in GUI editor.*
+
+### 🐛 Fixed
+
+- **Sparkline labels pushed outside graph area** — the CSS padding approach from v5.0.5
+  caused min/max labels to sit in empty space beside the graph rather than overlaid on
+  it. Replaced with absolute SVG positioning: the SVG is anchored to `left: 40px / right: 0`
+  (or `left: 0 / right: 40px` for right-side labels), so the label zone is exactly 40 CSS px
+  and the graph fills the remainder — pixel-accurate at any card width, no overlap.
+
+### ✨ Added
+
+- **Version badge in GUI editor** — the card editor now shows
+  `electricity-panel-card vX.Y.Z` at the bottom, making it easy to confirm which
+  version is active without opening DevTools.
+
+### 🛠 Internal
+
+- `EP_VERSION` extracted to `src/types.ts` and shared between the card and editor,
+  so version only needs to be updated in one place.
+
+---
+
 ## [5.0.6] — 2026-06-05
 *Hotfix: corrects a file corruption in v5.0.5 that caused the GitHub Actions build to fail.*
 

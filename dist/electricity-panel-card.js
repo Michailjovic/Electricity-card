@@ -656,6 +656,7 @@ const PRE_TARIFFS = {
     holiday: { starts: ["02:20", "07:00", "15:20"], offsets: [240, 80, 160] }
   }
 };
+const EP_VERSION = "5.0.7";
 var __defProp$1 = Object.defineProperty;
 var __getOwnPropDesc$1 = Object.getOwnPropertyDescriptor;
 var __decorateClass$1 = (decorators, target, key, kind) => {
@@ -1215,6 +1216,7 @@ let ElectricityPanelEditor = class extends i {
         <button class="btn-add primary" @click=${() => this._addCircuit()}>
           <ha-icon icon="mdi:plus-circle-outline"></ha-icon> Add circuit
         </button>
+        <div class="ep-ver">electricity-panel-card v${EP_VERSION}</div>
       </div>`;
   }
 };
@@ -1333,6 +1335,7 @@ display: flex; align-items: center; gap: 6px;
     .btn-add:hover { background: var(--secondary-background-color); }
     .btn-add.primary { border-color: var(--primary-color, #2196f3); color: var(--primary-color, #2196f3); margin-top: 8px; }
     .btn-add ha-icon { --mdc-icon-size: 18px; }
+    .ep-ver { font-size: 10px; color: var(--disabled-text-color); text-align: center; padding: 8px 0 2px; opacity: 0.6; }
   `;
 __decorateClass$1([
   n2({ attribute: false })
@@ -2415,9 +2418,9 @@ ElectricityPanelCard.styles = i$3`
     .note-row .device-name { font-style: italic; }
 
     .sparkline-wrap { position: relative; width: 100%; height: 38px; display: block; margin-top: 6px; }
-    .sparkline-wrap.spark-pad-left  { padding-left:  40px; }
-    .sparkline-wrap.spark-pad-right { padding-right: 40px; }
-    .sparkline { width: 100%; height: 100%; display: block; overflow: visible; }
+    .sparkline { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: auto; height: auto; display: block; overflow: visible; }
+    .sparkline-wrap.spark-pad-left  .sparkline { left: 40px; }
+    .sparkline-wrap.spark-pad-right .sparkline { right: 40px; }
     .spark-lbls { position: absolute; top: 0; bottom: 0; width: 40px; display: flex; flex-direction: column; justify-content: space-between; padding: 2px 2px; pointer-events: none; }
     .spark-lbls-left { left: 0; align-items: flex-start; }
     .spark-lbls-right { right: 0; align-items: flex-end; }
@@ -2443,14 +2446,13 @@ ElectricityPanelCard = __decorateClass([
   t("electricity-panel-card")
 ], ElectricityPanelCard);
 window["customCards"] ?? (window["customCards"] = []);
-const _EP_VERSION = "5.0.6";
 window["customCards"].push({
   type: "electricity-panel-card",
   name: "Electricity Panel Card",
-  description: `Circuit breaker panel — power, current, daily energy, HDO tariff (v${_EP_VERSION})`,
+  description: `Circuit breaker panel — power, current, daily energy, HDO tariff (v${EP_VERSION})`,
   preview: false
 });
-console.info(`%c electricity-panel-card %c v${_EP_VERSION} `, "background:#22c55e;color:#fff;font-weight:bold", "background:#1f2937;color:#22c55e");
+console.info(`%c electricity-panel-card %c v${EP_VERSION} `, "background:#22c55e;color:#fff;font-weight:bold", "background:#1f2937;color:#22c55e");
 export {
   ElectricityPanelCard
 };

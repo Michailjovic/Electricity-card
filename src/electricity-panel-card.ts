@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './electricity-panel-editor.js';
 import { PRE_TARIFFS } from './tariff-presets.js';
+import { EP_VERSION } from './types.js';
 import type {
   HomeAssistant,
   ElectricityPanelConfig,
@@ -1181,9 +1182,9 @@ export class ElectricityPanelCard extends LitElement {
     .note-row .device-name { font-style: italic; }
 
     .sparkline-wrap { position: relative; width: 100%; height: 38px; display: block; margin-top: 6px; }
-    .sparkline-wrap.spark-pad-left  { padding-left:  40px; }
-    .sparkline-wrap.spark-pad-right { padding-right: 40px; }
-    .sparkline { width: 100%; height: 100%; display: block; overflow: visible; }
+    .sparkline { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: auto; height: auto; display: block; overflow: visible; }
+    .sparkline-wrap.spark-pad-left  .sparkline { left: 40px; }
+    .sparkline-wrap.spark-pad-right .sparkline { right: 40px; }
     .spark-lbls { position: absolute; top: 0; bottom: 0; width: 40px; display: flex; flex-direction: column; justify-content: space-between; padding: 2px 2px; pointer-events: none; }
     .spark-lbls-left { left: 0; align-items: flex-start; }
     .spark-lbls-right { right: 0; align-items: flex-end; }
@@ -1196,11 +1197,10 @@ export class ElectricityPanelCard extends LitElement {
 }
 
 (window as unknown as Record<string, unknown>)['customCards'] ??= [];
-const _EP_VERSION = '5.0.6';
 ((window as unknown as Record<string, unknown[]>)['customCards']).push({
   type: 'electricity-panel-card',
   name: 'Electricity Panel Card',
-  description: `Circuit breaker panel — power, current, daily energy, HDO tariff (v${_EP_VERSION})`,
+  description: `Circuit breaker panel — power, current, daily energy, HDO tariff (v${EP_VERSION})`,
   preview: false,
 });
-console.info(`%c electricity-panel-card %c v${_EP_VERSION} `, 'background:#22c55e;color:#fff;font-weight:bold', 'background:#1f2937;color:#22c55e');
+console.info(`%c electricity-panel-card %c v${EP_VERSION} `, 'background:#22c55e;color:#fff;font-weight:bold', 'background:#1f2937;color:#22c55e');

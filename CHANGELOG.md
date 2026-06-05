@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.0.2] - 2026-06-05
+
+### 🔧 Fixed
+
+- **Single-phase sparkline font size** — min/max labels now use `font-size="8"` as
+  an SVG presentation attribute (user units) instead of CSS `font-size: 8px`. With
+  `preserveAspectRatio="none"` the SVG Y-scale is always 1:1 (viewBox height 38 =
+  38 px), so SVG user units give a consistent 8 px text height on any card width.
+  Labels are fully restored on single-phase sparklines.
+
+- **Version logging** — the card now prints its version to the browser console on
+  load (`electricity-panel-card v5.0.2`). This makes it easy to confirm which
+  version is actually cached in the browser without opening DevTools network tab.
+
+---
+
 ## [5.0.1] - 2026-06-05
 
 ### 🔧 Fixed

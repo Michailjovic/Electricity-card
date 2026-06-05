@@ -595,9 +595,9 @@ export class ElectricityPanelCard extends LitElement {
       <line x1="0" y1="${yMin}" x2="${W}" y2="${yMin}"
         class="spark-ref${showRef ? '' : ' spark-hidden'}"
         style="stroke:${refColor}"/>
-      <text x="${lx}" y="10" text-anchor="${anchor}"
+      <text x="${lx}" y="10" text-anchor="${anchor}" font-size="8"
         class="spark-label${hideLabels ? ' spark-hidden' : ''}">${this._fmtW(vMax)}</text>
-      <text x="${lx}" y="${H - 2}" text-anchor="${anchor}"
+      <text x="${lx}" y="${H - 2}" text-anchor="${anchor}" font-size="8"
         class="spark-label spark-label-min${hideLabels ? ' spark-hidden' : ''}">${this._fmtW(vMin)}</text>
     </svg>`;
   }
@@ -805,7 +805,7 @@ export class ElectricityPanelCard extends LitElement {
           ? html`<div class="devices-list">${c.devices!.map(d => this._renderDevice(d))}</div>`
           : nothing}
         ${this._config.sparkline_1phase ? html`
-          <div class="circuit-spark-wrap">${this._renderSparkline(c.power, true)}</div>
+          <div class="circuit-spark-wrap">${this._renderSparkline(c.power)}</div>
         ` : nothing}
       </div>
     `;
@@ -1183,7 +1183,7 @@ export class ElectricityPanelCard extends LitElement {
     .note-row .device-name { font-style: italic; }
 
     .sparkline { width: 100%; height: 38px; display: block; margin-top: 6px; overflow: visible; }
-    .spark-label { font-size: 8px; fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
+    .spark-label { fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
     .spark-label-min { fill: rgba(255,255,255,.45); }
     .spark-ref { stroke-width: 1px; stroke-dasharray: 3 3; }
     .spark-hidden { display: none; }
@@ -1192,9 +1192,11 @@ export class ElectricityPanelCard extends LitElement {
 }
 
 (window as unknown as Record<string, unknown>)['customCards'] ??= [];
+const _EP_VERSION = '5.0.1';
 ((window as unknown as Record<string, unknown[]>)['customCards']).push({
   type: 'electricity-panel-card',
   name: 'Electricity Panel Card',
-  description: 'Circuit breaker panel — power, current, daily energy, HDO tariff',
+  description: `Circuit breaker panel — power, current, daily energy, HDO tariff (v${_EP_VERSION})`,
   preview: false,
 });
+console.info(`%c electricity-panel-card %c v${_EP_VERSION} `, 'background:#22c55e;color:#fff;font-weight:bold', 'background:#1f2937;color:#22c55e');

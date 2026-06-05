@@ -267,6 +267,13 @@ export class ElectricityPanelEditor extends LitElement {
               @change=${(e: Event) => this._set(['sparkline_ref_line'], (e.target as HTMLInputElement).checked)} />
             <label for="spark-ref">Reference line at current value</label>
           </div>
+          ${ref ? html`
+            <div class="field">
+              <label>Reference line colour</label>
+              <input type="color" .value=${this._config.sparkline_ref_color ?? '#ffffff'}
+                @input=${(e: Event) => this._set(['sparkline_ref_color'], (e.target as HTMLInputElement).value)} />
+              <span class="field-hint">Default: semi-transparent white</span>
+            </div>` : ''}
         </div>
       </details>`;
   }

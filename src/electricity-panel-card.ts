@@ -525,9 +525,14 @@ export class ElectricityPanelCard extends LitElement {
     const vals = data.map(p => p.v);
     const vMin = Math.min(...vals), vMax = Math.max(...vals);
     const vRange = vMax - vMin || 0.01;
+    // Leave horizontal space for labels so the graph line doesn't overlap them.
+    const xPad = 22;
+    const xStart = labelPos === 'left' ? xPad : 0;
+    const xEnd   = labelPos === 'right' ? W - xPad : W;
+    const xRange2 = xEnd - xStart || 1;
     // Smooth cubic-bezier path (midpoint control points)
     const coords = data.map(p => ({
-      x: ((p.t - tMin) / tRange) * W,
+      x: xStart + ((p.t - tMin) / tRange) * xRange2,
       y: (H - pad) - ((p.v - vMin) / vRange) * (H - pad * 2),
     }));
     let linePath = `M ${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
@@ -539,12 +544,13 @@ export class ElectricityPanelCard extends LitElement {
     const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)},${H} L ${coords[0].x.toFixed(1)},${H} Z`;
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, '_')}`;
     const refY = coords[coords.length - 1].y.toFixed(1);
-    const lx = labelPos === 'right' ? '98' : '2';
+    const lx = labelPos === 'right' ? String(W - 1) : '1';
     const anchor = labelPos === 'right' ? 'end' : 'start';
     // All SVG children must be in the main svg template so Lit uses SVG namespace.
     // Conditional sub-templates (html``) create elements in HTML namespace, making
     // <text> and <line> invisible inside SVG. Visibility is controlled via CSS class.
     const hideLabels = labelPos === 'none';
+    const refColor = this._config.sparkline_ref_color ?? 'rgba(255,255,255,0.35)';
     return html`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="sparkline">
       <defs>
         <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
@@ -555,7 +561,7 @@ export class ElectricityPanelCard extends LitElement {
       </defs>
       <path d="${areaPath}" fill="url(#${gid})"/>
       <line x1="0" y1="${refY}" x2="${W}" y2="${refY}"
-        class="spark-ref${showRef ? '' : ' spark-hidden'}"/>
+        stroke="${refColor}" class="spark-ref${showRef ? '' : ' spark-hidden'}"/>
       <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
         stroke-linejoin="round" stroke-linecap="round"/>
       <text x="${lx}" y="10" text-anchor="${anchor}"

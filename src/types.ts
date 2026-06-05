@@ -130,4 +130,6 @@ export interface ElectricityPanelConfig {
   sparkline_labels?: 'left' | 'right' | 'none';
   /** Draw a horizontal dashed reference line at the most recent value */
   sparkline_ref_line?: boolean;
+  /** Colour of the reference line (default: rgba(255,255,255,0.35)) */
+  sparkline_ref_color?: string;
 }

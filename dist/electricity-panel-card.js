@@ -894,6 +894,13 @@ let ElectricityPanelEditor = class extends i {
               @change=${(e2) => this._set(["sparkline_ref_line"], e2.target.checked)} />
             <label for="spark-ref">Reference line at current value</label>
           </div>
+          ${ref ? b`
+            <div class="field">
+              <label>Reference line colour</label>
+              <input type="color" .value=${this._config.sparkline_ref_color ?? "#ffffff"}
+                @input=${(e2) => this._set(["sparkline_ref_color"], e2.target.value)} />
+              <span class="field-hint">Default: semi-transparent white</span>
+            </div>` : ""}
         </div>
       </details>`;
   }
@@ -1747,8 +1754,12 @@ let ElectricityPanelCard = class extends i {
     const vals = data.map((p2) => p2.v);
     const vMin = Math.min(...vals), vMax = Math.max(...vals);
     const vRange = vMax - vMin || 0.01;
+    const xPad = 22;
+    const xStart = labelPos === "left" ? xPad : 0;
+    const xEnd = labelPos === "right" ? W - xPad : W;
+    const xRange2 = xEnd - xStart || 1;
     const coords = data.map((p2) => ({
-      x: (p2.t - tMin) / tRange * W,
+      x: xStart + (p2.t - tMin) / tRange * xRange2,
       y: H2 - pad - (p2.v - vMin) / vRange * (H2 - pad * 2)
     }));
     let linePath = `M ${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
@@ -1760,9 +1771,10 @@ let ElectricityPanelCard = class extends i {
     const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)},${H2} L ${coords[0].x.toFixed(1)},${H2} Z`;
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, "_")}`;
     const refY = coords[coords.length - 1].y.toFixed(1);
-    const lx = labelPos === "right" ? "98" : "2";
+    const lx = labelPos === "right" ? String(W - 1) : "1";
     const anchor = labelPos === "right" ? "end" : "start";
     const hideLabels = labelPos === "none";
+    const refColor = this._config.sparkline_ref_color ?? "rgba(255,255,255,0.35)";
     return b`<svg viewBox="0 0 ${W} ${H2}" preserveAspectRatio="none" class="sparkline">
       <defs>
         <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
@@ -1773,7 +1785,7 @@ let ElectricityPanelCard = class extends i {
       </defs>
       <path d="${areaPath}" fill="url(#${gid})"/>
       <line x1="0" y1="${refY}" x2="${W}" y2="${refY}"
-        class="spark-ref${showRef ? "" : " spark-hidden"}"/>
+        stroke="${refColor}" class="spark-ref${showRef ? "" : " spark-hidden"}"/>
       <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
         stroke-linejoin="round" stroke-linecap="round"/>
       <text x="${lx}" y="10" text-anchor="${anchor}"

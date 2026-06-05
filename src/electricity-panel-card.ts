@@ -526,7 +526,7 @@ export class ElectricityPanelCard extends LitElement {
     const vMin = Math.min(...vals), vMax = Math.max(...vals);
     const vRange = vMax - vMin || 0.01;
     // Leave horizontal space for labels so the graph line doesn't overlap them.
-    const xPad = 22;
+    const xPad = 38;
     const xStart = labelPos === 'left' ? xPad : 0;
     const xEnd   = labelPos === 'right' ? W - xPad : W;
     const xRange2 = xEnd - xStart || 1;
@@ -543,12 +543,14 @@ export class ElectricityPanelCard extends LitElement {
     }
     const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)},${H} L ${coords[0].x.toFixed(1)},${H} Z`;
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, '_')}`;
-    const refY = coords[coords.length - 1].y.toFixed(1);
     const lx = labelPos === 'right' ? String(W - 1) : '1';
     const anchor = labelPos === 'right' ? 'end' : 'start';
-    // All SVG children must be in the main svg template so Lit uses SVG namespace.
-    // Conditional sub-templates (html``) create elements in HTML namespace, making
-    // <text> and <line> invisible inside SVG. Visibility is controlled via CSS class.
+    // Reference lines span the label margin, visually connecting text to graph scale.
+    // x1/x2 are the margin area (between graph edge and SVG edge).
+    const refX1 = labelPos === 'right' ? xEnd : 0;
+    const refX2 = labelPos === 'right' ? W : xStart;
+    const yMax = pad.toFixed(1);          // top of graph = where vMax maps to
+    const yMin = (H - pad).toFixed(1);    // bottom of graph = where vMin maps to
     const hideLabels = labelPos === 'none';
     const refColor = this._config.sparkline_ref_color ?? 'rgba(255,255,255,0.35)';
     return html`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="sparkline">
@@ -560,10 +562,14 @@ export class ElectricityPanelCard extends LitElement {
         </linearGradient>
       </defs>
       <path d="${areaPath}" fill="url(#${gid})"/>
-      <line x1="0" y1="${refY}" x2="${W}" y2="${refY}"
-        stroke="${refColor}" class="spark-ref${showRef ? '' : ' spark-hidden'}"/>
       <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
         stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="${refX1}" y1="${yMax}" x2="${refX2}" y2="${yMax}"
+        class="spark-ref${showRef && !hideLabels ? '' : ' spark-hidden'}"
+        style="stroke:${refColor}"/>
+      <line x1="${refX1}" y1="${yMin}" x2="${refX2}" y2="${yMin}"
+        class="spark-ref${showRef && !hideLabels ? '' : ' spark-hidden'}"
+        style="stroke:${refColor}"/>
       <text x="${lx}" y="10" text-anchor="${anchor}"
         class="spark-label${hideLabels ? ' spark-hidden' : ''}">${this._fmtW(vMax)}</text>
       <text x="${lx}" y="${H - 2}" text-anchor="${anchor}"
@@ -1137,7 +1143,7 @@ export class ElectricityPanelCard extends LitElement {
     .sparkline { width: 100%; height: 38px; display: block; margin-top: 6px; overflow: visible; }
     .spark-label { font-size: 8px; fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
     .spark-label-min { fill: rgba(255,255,255,.45); }
-    .spark-ref { stroke: rgba(255,255,255,.25); stroke-width: 0.8; stroke-dasharray: 2 3; }
+    .spark-ref { stroke-width: 1px; stroke-dasharray: 3 3; }
     .spark-hidden { display: none; }
   `;
 }

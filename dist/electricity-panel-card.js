@@ -1754,7 +1754,7 @@ let ElectricityPanelCard = class extends i {
     const vals = data.map((p2) => p2.v);
     const vMin = Math.min(...vals), vMax = Math.max(...vals);
     const vRange = vMax - vMin || 0.01;
-    const xPad = 22;
+    const xPad = 38;
     const xStart = labelPos === "left" ? xPad : 0;
     const xEnd = labelPos === "right" ? W - xPad : W;
     const xRange2 = xEnd - xStart || 1;
@@ -1770,9 +1770,12 @@ let ElectricityPanelCard = class extends i {
     }
     const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)},${H2} L ${coords[0].x.toFixed(1)},${H2} Z`;
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, "_")}`;
-    const refY = coords[coords.length - 1].y.toFixed(1);
     const lx = labelPos === "right" ? String(W - 1) : "1";
     const anchor = labelPos === "right" ? "end" : "start";
+    const refX1 = labelPos === "right" ? xEnd : 0;
+    const refX2 = labelPos === "right" ? W : xStart;
+    const yMax = pad.toFixed(1);
+    const yMin = (H2 - pad).toFixed(1);
     const hideLabels = labelPos === "none";
     const refColor = this._config.sparkline_ref_color ?? "rgba(255,255,255,0.35)";
     return b`<svg viewBox="0 0 ${W} ${H2}" preserveAspectRatio="none" class="sparkline">
@@ -1784,10 +1787,14 @@ let ElectricityPanelCard = class extends i {
         </linearGradient>
       </defs>
       <path d="${areaPath}" fill="url(#${gid})"/>
-      <line x1="0" y1="${refY}" x2="${W}" y2="${refY}"
-        stroke="${refColor}" class="spark-ref${showRef ? "" : " spark-hidden"}"/>
       <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
         stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="${refX1}" y1="${yMax}" x2="${refX2}" y2="${yMax}"
+        class="spark-ref${showRef && !hideLabels ? "" : " spark-hidden"}"
+        style="stroke:${refColor}"/>
+      <line x1="${refX1}" y1="${yMin}" x2="${refX2}" y2="${yMin}"
+        class="spark-ref${showRef && !hideLabels ? "" : " spark-hidden"}"
+        style="stroke:${refColor}"/>
       <text x="${lx}" y="10" text-anchor="${anchor}"
         class="spark-label${hideLabels ? " spark-hidden" : ""}">${this._fmtW(vMax)}</text>
       <text x="${lx}" y="${H2 - 2}" text-anchor="${anchor}"
@@ -2306,7 +2313,7 @@ ElectricityPanelCard.styles = i$3`
     .sparkline { width: 100%; height: 38px; display: block; margin-top: 6px; overflow: visible; }
     .spark-label { font-size: 8px; fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
     .spark-label-min { fill: rgba(255,255,255,.45); }
-    .spark-ref { stroke: rgba(255,255,255,.25); stroke-width: 0.8; stroke-dasharray: 2 3; }
+    .spark-ref { stroke-width: 1px; stroke-dasharray: 3 3; }
     .spark-hidden { display: none; }
   `;
 __decorateClass([

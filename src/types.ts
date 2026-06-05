@@ -124,4 +124,10 @@ export interface ElectricityPanelConfig {
   circuits?: Circuit[];
   /** History window for sparkline graphs in 3-phase phase cells (hours, 1–24, default 3) */
   graph_hours?: number;
+  /** Sparkline line / fill colour — any CSS colour string (default: #ef4444) */
+  sparkline_color?: string;
+  /** Where min/max labels appear: left (start of period) | right (current end) | none */
+  sparkline_labels?: 'left' | 'right' | 'none';
+  /** Draw a horizontal dashed reference line at the most recent value */
+  sparkline_ref_line?: boolean;
 }

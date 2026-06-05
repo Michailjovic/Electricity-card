@@ -241,6 +241,36 @@ export class ElectricityPanelEditor extends LitElement {
 
   // ── Section renderers ──────────────────────────────────────────────────────
 
+  private _renderSparklineSection(): TemplateResult {
+    const col = this._config.sparkline_color ?? '#ef4444';
+    const lbl = this._config.sparkline_labels ?? 'left';
+    const ref = this._config.sparkline_ref_line ?? false;
+    return html`
+      <details class="section">
+        <summary>Sparkline graphs</summary>
+        <div class="section-body">
+          <div class="field">
+            <label>Line colour</label>
+            <input type="color" .value=${col}
+              @input=${(e: Event) => this._set(['sparkline_color'], (e.target as HTMLInputElement).value)} />
+          </div>
+          <div class="field">
+            <label>Label position</label>
+            <select @change=${(e: Event) => this._set(['sparkline_labels'], (e.target as HTMLSelectElement).value)}>
+              <option value="left" ?selected=${lbl === 'left'}>Left — start of period</option>
+              <option value="right" ?selected=${lbl === 'right'}>Right — current / end</option>
+              <option value="none" ?selected=${lbl === 'none'}>Hidden</option>
+            </select>
+          </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="spark-ref" .checked=${ref}
+              @change=${(e: Event) => this._set(['sparkline_ref_line'], (e.target as HTMLInputElement).checked)} />
+            <label for="spark-ref">Reference line at current value</label>
+          </div>
+        </div>
+      </details>`;
+  }
+
   private _renderMeterSection(): TemplateResult {
     const m = this._config.main_meter ?? {};
     const s = (f: string) => (v: string) => this._set(['main_meter', f], v);
@@ -448,6 +478,7 @@ export class ElectricityPanelEditor extends LitElement {
           (v) => this._set(['title'], v), 'Electricity panel')}
         ${this._numField('History graph period (h, 1–24)', this._config.graph_hours as number | undefined,
           (v) => this._set(['graph_hours'], Math.max(1, Math.min(24, parseFloat(v) || 3))), '3')}
+        ${this._renderSparklineSection()}
         ${this._renderMeterSection()}
         ${this._renderHdoSection()}
         <div class="sec-hdr">Circuits</div>
@@ -466,6 +497,11 @@ export class ElectricityPanelEditor extends LitElement {
     .field label {
       display: block; font-size: 12px;
       color: var(--secondary-text-color); margin-bottom: 3px;
+    }
+    .field input[type="color"] {
+      width: 44px; height: 30px; padding: 2px 3px; cursor: pointer;
+      border-radius: 6px; border: 1px solid var(--divider-color, rgba(0,0,0,.15));
+      background: var(--primary-background-color);
     }
     .field input[type="text"],
     .field input[type="number"],

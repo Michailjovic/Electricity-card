@@ -505,6 +505,9 @@ export class ElectricityPanelCard extends LitElement {
     const data = this._historyCache.get(entityId);
     if (!data || data.length < 2) return nothing;
     const W = 100, H = 38, pad = 3;
+    const color = this._config.sparkline_color ?? '#ef4444';
+    const labelPos = this._config.sparkline_labels ?? 'left';
+    const showRef = this._config.sparkline_ref_line ?? false;
     const tMin = data[0].t, tMax = data[data.length - 1].t;
     const tRange = tMax - tMin || 1;
     const vals = data.map(p => p.v);
@@ -523,21 +526,25 @@ export class ElectricityPanelCard extends LitElement {
     }
     const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)},${H} L ${coords[0].x.toFixed(1)},${H} Z`;
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, '_')}`;
-    const labelMax = this._fmtW(vMax);
-    const labelMin = this._fmtW(vMin);
+    const refY = coords[coords.length - 1].y.toFixed(1);
+    const lx = labelPos === 'right' ? '98' : '2';
+    const anchor = labelPos === 'right' ? 'end' : 'start';
     return html`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="sparkline">
       <defs>
         <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#ef4444" stop-opacity="0.3"/>
-          <stop offset="85%" stop-color="#ef4444" stop-opacity="0.05"/>
-          <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+          <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+          <stop offset="85%" stop-color="${color}" stop-opacity="0.05"/>
+          <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
         </linearGradient>
       </defs>
       <path d="${areaPath}" fill="url(#${gid})"/>
-      <path d="${linePath}" fill="none" stroke="#ef4444" stroke-width="1.5"
+      ${showRef ? html`<line x1="0" y1="${refY}" x2="${W}" y2="${refY}" class="spark-ref"/>` : nothing}
+      <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
         stroke-linejoin="round" stroke-linecap="round"/>
-      <text x="2" y="10" text-anchor="start" class="spark-label">${labelMax}</text>
-      <text x="2" y="${H - 2}" text-anchor="start" class="spark-label spark-label-min">${labelMin}</text>
+      ${labelPos !== 'none' ? html`
+        <text x="${lx}" y="10" text-anchor="${anchor}" class="spark-label">${this._fmtW(vMax)}</text>
+        <text x="${lx}" y="${H - 2}" text-anchor="${anchor}" class="spark-label spark-label-min">${this._fmtW(vMin)}</text>
+      ` : nothing}
     </svg>`;
   }
 
@@ -1107,6 +1114,7 @@ export class ElectricityPanelCard extends LitElement {
     .sparkline { width: 100%; height: 38px; display: block; margin-top: 6px; overflow: visible; }
     .spark-label { font-size: 8px; fill: rgba(255,255,255,.75); font-family: inherit; stroke: #111318; stroke-width: 3px; paint-order: stroke fill; }
     .spark-label-min { fill: rgba(255,255,255,.45); }
+    .spark-ref { stroke: rgba(255,255,255,.25); stroke-width: 0.8; stroke-dasharray: 2 3; }
   `;
 }
 

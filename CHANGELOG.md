@@ -7,17 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [4.5.0] - 2026-06-05
+## [4.5.1] - 2026-06-05
 
 ### Fixed
 
-- **Sparkline reference line** — `sparkline_ref_line: true` now draws a single
-  horizontal dashed line at the **most recent value** (the rightmost data point),
-  spanning the full width of the SVG so the line crosses the entire graph area.
-  Previously two lines were drawn at the top and bottom extremes of the graph
-  (vMax / vMin bounds), which was visually misleading. The line is now also
-  independent of `sparkline_labels` — it shows regardless of whether labels are
-  set to `left`, `right`, or `none`.
+- **Sparkline reference lines** — `sparkline_ref_line: true` now correctly shows
+  both the max and min reference lines regardless of the `sparkline_labels` setting.
+  Previously the lines were hidden whenever `sparkline_labels` was set to `none`,
+  even though reference lines and labels are independent features.
 
 ---
 

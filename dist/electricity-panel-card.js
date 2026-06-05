@@ -1772,7 +1772,8 @@ let ElectricityPanelCard = class extends i {
     const gid = `sg_${entityId.replace(/[^a-z0-9]/gi, "_")}`;
     const lx = labelPos === "right" ? String(W - 1) : "1";
     const anchor = labelPos === "right" ? "end" : "start";
-    const yRef = coords[coords.length - 1].y.toFixed(1);
+    const yMax = pad.toFixed(1);
+    const yMin = (H2 - pad).toFixed(1);
     const hideLabels = labelPos === "none";
     const refColor = this._config.sparkline_ref_color ?? "rgba(255,255,255,0.35)";
     return b`<svg viewBox="0 0 ${W} ${H2}" preserveAspectRatio="none" class="sparkline">
@@ -1786,7 +1787,10 @@ let ElectricityPanelCard = class extends i {
       <path d="${areaPath}" fill="url(#${gid})"/>
       <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.5"
         stroke-linejoin="round" stroke-linecap="round"/>
-      <line x1="0" y1="${yRef}" x2="${W}" y2="${yRef}"
+      <line x1="0" y1="${yMax}" x2="${W}" y2="${yMax}"
+        class="spark-ref${showRef ? "" : " spark-hidden"}"
+        style="stroke:${refColor}"/>
+      <line x1="0" y1="${yMin}" x2="${W}" y2="${yMin}"
         class="spark-ref${showRef ? "" : " spark-hidden"}"
         style="stroke:${refColor}"/>
       <text x="${lx}" y="10" text-anchor="${anchor}"
